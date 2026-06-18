@@ -39,9 +39,8 @@ class RAGConfig():
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 
-    # Generation
-
-    llm_model: str = "gpt-4o-mini"
+    # Generation — Anthropic Claude
+    llm_model: str = "claude-sonnet-4-6"
     llm_temperature: float = 0.1
     max_tokens: int = 1024
 
@@ -67,7 +66,7 @@ class Document():
 
 @dataclass
 class Chunk():
-    text = str
+    text: str = ""
     metadata: dict = field(default_factory=dict)
     chunk_id: str = ""
     embedding: list[float] = field(default_factory=list)

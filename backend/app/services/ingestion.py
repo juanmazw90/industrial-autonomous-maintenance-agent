@@ -1,40 +1,103 @@
 """
-Diseño de arquitectura del sistema RAG 
-Componentes: (ingesta, retrieval, generación, caché), las interfaces entre ellos, y el flujo de datos end-to-end."
-Un RAG de producción Necesita componentes desacoplados para poder escalar, testear, y reemplazar partes sin romper todo.
+ingestion.py — Pipeline de ingesta de documentos (PDF, Markdown, texto).
 
-ingestion.py — Pipeline de Ingestion de Documentos con chunking inteligente.
+Flujo:  archivo (bytes) → Document → chunks → embeddings → Qdrant
 
-Ingesta: Documentos → chunks → embeddings → Qdrant.
-
+La clase IngestionPipeline es síncrona porque la ingestión ocurre en
+segundo plano (no es un path de alta frecuencia). El endpoint FastAPI
+la llama con run_in_executor para no bloquear el event loop.
 """
+
 import hashlib
+import uuid
 from pathlib import Path
-from typing import List
+
+import fitz  # PyMuPDF
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from sentence_transformers import SentenceTransformer
 
-from ..services.rag_config import Chunk, Document, RAGConfig
+from .rag_config import Chunk, Document, RAGConfig
 
 
+# ---------------------------------------------------------------------------
+# Parsers de documentos
+# ---------------------------------------------------------------------------
+
+def parse_pdf(content: bytes, filename: str) -> Document:
+    """Extrae texto de un PDF usando PyMuPDF y devuelve un Document."""
+    doc_fitz = fitz.open(stream=content, filetype="pdf")
+    pages_text = []
+    for page in doc_fitz:
+        text = page.get_text().strip()
+        if text:
+            pages_text.append(text)
+    full_text = "\n\n".join(pages_text)
+    doc_id = hashlib.md5(content).hexdigest()
+    return Document(
+        content=full_text,
+        metadata={"source": filename, "type": "pdf", "pages": len(pages_text)},
+        doc_id=doc_id,
+    )
+
+
+def parse_markdown(content: bytes, filename: str) -> Document:
+    text = content.decode("utf-8")
+    doc_id = hashlib.md5(content).hexdigest()
+    return Document(
+        content=text,
+        metadata={"source": filename, "type": "markdown"},
+        doc_id=doc_id,
+    )
+
+
+def parse_text(content: bytes, filename: str) -> Document:
+    text = content.decode("utf-8", errors="replace")
+    doc_id = hashlib.md5(content).hexdigest()
+    return Document(
+        content=text,
+        metadata={"source": filename, "type": "text"},
+        doc_id=doc_id,
+    )
+
+
+PARSERS = {
+    ".pdf": parse_pdf,
+    ".md":  parse_markdown,
+    ".txt": parse_text,
+}
+
+
+def parse_document(content: bytes, filename: str) -> Document:
+    """Selecciona el parser correcto según la extensión del archivo."""
+    ext = Path(filename).suffix.lower()
+    parser = PARSERS.get(ext)
+    if not parser:
+        raise ValueError(f"Formato no soportado: '{ext}'. Formatos válidos: {list(PARSERS)}")
+    return parser(content, filename)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline principal
+# ---------------------------------------------------------------------------
 
 class IngestionPipeline:
     def __init__(self, config: RAGConfig):
         self.config = config
         self.embedder = SentenceTransformer(config.embedding_model)
-        self.qdrant = QdrantClient(host=config.qdrant_host,port=config.qdrant_port)
-        self.splitter = RecursiveCharacterTextSplitter(chunk_size=config.chunk_size,
-        chunk_overlap=config.overlap_size,
-        separators=["\n\n", "\n", ". ", " ", ""],
+        self.qdrant = QdrantClient(host=config.qdrant_host, port=config.qdrant_port)
+        self.splitter = RecursiveCharacterTextSplitter(
+            chunk_size=config.chunk_size,
+            chunk_overlap=config.overlap_size,
+            separators=["\n\n", "\n", ". ", " ", ""],
         )
         self._ensure_collection()
-    
- 
-    def _ensure_collection(self):
-        collections = [c.name for c in self.qdrant.get_collections().collections]
-        if self.config.collection_name not in collections:
+
+    def _ensure_collection(self) -> None:
+        """Crea la colección en Qdrant si no existe."""
+        existing = [c.name for c in self.qdrant.get_collections().collections]
+        if self.config.collection_name not in existing:
             self.qdrant.create_collection(
                 collection_name=self.config.collection_name,
                 vectors_config=VectorParams(
@@ -43,33 +106,33 @@ class IngestionPipeline:
                 ),
             )
 
-    def chunk_document(self, doc: Document) -> List[Chunk]:
+    def chunk_document(self, doc: Document) -> list[Chunk]:
         texts = self.splitter.split_text(doc.content)
         chunks = []
         for i, text in enumerate(texts):
-            chunk_id = hashlib.sha256(f"{doc.id}_{i}".encode()).hexdigest()
-            chunks.append(Chunk(text=text,
-                                metadata={
-                                **doc.metadata,
-                                "doc_id": doc.doc_id,
-                                "chunk_index": i,
-                                "total_chunks": len(texts),
-                            },
-                            chunk_id=chunk_id,
-                        ))
+            chunk_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc.doc_id}:{i}"))
+            chunks.append(Chunk(
+                text=text,
+                metadata={
+                    **doc.metadata,
+                    "doc_id": doc.doc_id,
+                    "chunk_index": i,
+                    "total_chunks": len(texts),
+                },
+                chunk_id=chunk_id,
+            ))
         return chunks
 
-    def embed_chunks(self, chunks: List[Chunk]) -> List[Chunk]:
+    def embed_chunks(self, chunks: list[Chunk]) -> list[Chunk]:
         texts = [c.text for c in chunks]
         embeddings = self.embedder.encode(
-                texts, batch_size=64, normalize_embeddings=True
-        
-    )
+            texts, batch_size=64, normalize_embeddings=True
+        )
         for chunk, embedding in zip(chunks, embeddings):
             chunk.embedding = embedding.tolist()
         return chunks
-    
-    def store_chunks(self, chunks: list[Chunk]):
+
+    def store_chunks(self, chunks: list[Chunk]) -> None:
         points = [
             PointStruct(
                 id=c.chunk_id,
@@ -83,31 +146,9 @@ class IngestionPipeline:
             points=points,
         )
 
-    
-    
     def ingest(self, doc: Document) -> int:
+        """Procesa un Document completo y lo almacena en Qdrant. Devuelve nº de chunks."""
         chunks = self.chunk_document(doc)
         chunks = self.embed_chunks(chunks)
         self.store_chunks(chunks)
         return len(chunks)
-
-    
-
-    
-def load_markdown_files(directory: str) -> list[Document]:
-    docs = []
-    for path in Path(directory).glob("**/*.md"):
-        content = path.read_text(encoding="utf-8")
-        docs.append(Document(
-            content=content,
-            metadata={"source": str(path), "type": "markdown"},
-            doc_id=hashlib.md5(str(path).encode()).hexdigest(),
-        ))
-    return docs
-    
-if __name__ == "__main__":
-    config = RAGConfig()
-    pipeline = IngestionPipeline(config)
-    docs = load_markdown_files(".data/docs")
-    n = pipeline.ingest(docs)
-    print(f"Ingested {len(docs)} documents into {n} chunks")

@@ -21,65 +21,13 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-
-# ---------------------------------------------------------------------------
-# Machine configurations
-# ---------------------------------------------------------------------------
-
-MACHINE_CONFIGS: dict[str, dict[str, Any]] = {
-    "PUMP-001": {
-        "type": "centrifugal_pump",
-        "nominal_speed": 1480.0,
-        "nominal_current": 18.5,
-        "nominal_vibration": 1.2,
-        "nominal_temp_bearing": 55.0,
-        "nominal_temp_motor": 48.0,
-        "nominal_pressure": 6.2,
-    },
-    "PUMP-002": {
-        "type": "centrifugal_pump",
-        "nominal_speed": 1450.0,
-        "nominal_current": 22.0,
-        "nominal_vibration": 1.4,
-        "nominal_temp_bearing": 58.0,
-        "nominal_temp_motor": 51.0,
-        "nominal_pressure": 7.1,
-    },
-    "MOTOR-001": {
-        "type": "induction_motor",
-        "nominal_speed": 1490.0,
-        "nominal_current": 15.0,
-        "nominal_vibration": 0.9,
-        "nominal_temp_bearing": 52.0,
-        "nominal_temp_motor": 62.0,
-        "nominal_pressure": None,
-    },
-    "MOTOR-002": {
-        "type": "induction_motor",
-        "nominal_speed": 1485.0,
-        "nominal_current": 28.0,
-        "nominal_vibration": 1.1,
-        "nominal_temp_bearing": 57.0,
-        "nominal_temp_motor": 68.0,
-        "nominal_pressure": None,
-    },
-    "COMP-001": {
-        "type": "compressor",
-        "nominal_speed": 2950.0,
-        "nominal_current": 35.0,
-        "nominal_vibration": 2.1,
-        "nominal_temp_bearing": 65.0,
-        "nominal_temp_motor": 72.0,
-        "nominal_pressure": 8.2,
-    },
-}
+from amia_shared.schemas import MACHINE_CONFIGS
 
 FAILURE_MODES_BY_TYPE: dict[str, list[str]] = {
     "centrifugal_pump": ["bearing_wear", "misalignment", "electrical_failure", "overheating", "cavitation"],

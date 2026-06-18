@@ -20,14 +20,14 @@ import redis.asyncio as redis
 from .rag_config import RAGConfig, RAGResponse
 
 class RAGCache:
-    def __init__(self, config, RAGConfig):
+    def __init__(self, config: RAGConfig):
         self.config = config
         self.redis = redis.Redis(
             host="localhost",
-            port=config.redis_port,
-            decode_responses = True)
-            
-        self._rag_config = RAGConfig
+            port=6379,
+            decode_responses=True,
+        )
+        self._hits = 0
         self._misses = 0
     
     def _cache_key(self, query: str) -> str:
