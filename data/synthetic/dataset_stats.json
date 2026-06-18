@@ -1,0 +1,19 @@
+{
+  "total_rows": 43800,
+  "machines": 5,
+  "failure_events": 34,
+  "date_range": {
+    "start": "2024-01-01 00:00:00",
+    "end": "2024-12-30 23:00:00"
+  },
+  "failure_mode_counts": {
+    "normal": 39417,
+    "bearing_wear": 2229,
+    "overheating": 1222,
+    "cavitation": 327,
+    "misalignment": 319,
+    "electrical_failure": 252,
+    "failure": 34
+  },
+  "rows_with_rul": 17034
+}

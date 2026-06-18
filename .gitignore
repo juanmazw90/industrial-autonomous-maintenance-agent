@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.uv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg
+MANIFEST
+
+# Data (large files — regenerate with scripts/generate_data.py)
+data/synthetic/*.parquet
+data/synthetic/*.csv
+data/synthetic/plots/
+# PDFs — download manually (see ROADMAP.md docs section)
+data/documents/
+data/raw/
+data/processed/
+mlruns/
+mlartifacts/
+qdrant_storage/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node
+node_modules/
+.next/
+out/
+.npm/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Notebooks (outputs)
+.ipynb_checkpoints/

@@ -1,0 +1,308 @@
+[
+  {
+    "machine_id": "PUMP-001",
+    "failure_mode": "overheating",
+    "failure_hour": 846,
+    "degradation_start_hour": 707,
+    "degradation_duration_hours": 140,
+    "failure_timestamp": "2024-02-05T06:00:00",
+    "degradation_start_timestamp": "2024-01-30T11:00:00"
+  },
+  {
+    "machine_id": "PUMP-001",
+    "failure_mode": "overheating",
+    "failure_hour": 2257,
+    "degradation_start_hour": 2137,
+    "degradation_duration_hours": 121,
+    "failure_timestamp": "2024-04-04T01:00:00",
+    "degradation_start_timestamp": "2024-03-30T01:00:00"
+  },
+  {
+    "machine_id": "PUMP-001",
+    "failure_mode": "misalignment",
+    "failure_hour": 3455,
+    "degradation_start_hour": 3370,
+    "degradation_duration_hours": 86,
+    "failure_timestamp": "2024-05-23T23:00:00",
+    "degradation_start_timestamp": "2024-05-20T10:00:00"
+  },
+  {
+    "machine_id": "PUMP-001",
+    "failure_mode": "misalignment",
+    "failure_hour": 4589,
+    "degradation_start_hour": 4524,
+    "degradation_duration_hours": 66,
+    "failure_timestamp": "2024-07-10T05:00:00",
+    "degradation_start_timestamp": "2024-07-07T12:00:00"
+  },
+  {
+    "machine_id": "PUMP-001",
+    "failure_mode": "cavitation",
+    "failure_hour": 5460,
+    "degradation_start_hour": 5417,
+    "degradation_duration_hours": 44,
+    "failure_timestamp": "2024-08-15T12:00:00",
+    "degradation_start_timestamp": "2024-08-13T17:00:00"
+  },
+  {
+    "machine_id": "PUMP-001",
+    "failure_mode": "cavitation",
+    "failure_hour": 6377,
+    "degradation_start_hour": 6290,
+    "degradation_duration_hours": 88,
+    "failure_timestamp": "2024-09-22T17:00:00",
+    "degradation_start_timestamp": "2024-09-19T02:00:00"
+  },
+  {
+    "machine_id": "PUMP-001",
+    "failure_mode": "overheating",
+    "failure_hour": 7176,
+    "degradation_start_hour": 7038,
+    "degradation_duration_hours": 139,
+    "failure_timestamp": "2024-10-26T00:00:00",
+    "degradation_start_timestamp": "2024-10-20T06:00:00"
+  },
+  {
+    "machine_id": "PUMP-001",
+    "failure_mode": "electrical_failure",
+    "failure_hour": 8396,
+    "degradation_start_hour": 8356,
+    "degradation_duration_hours": 41,
+    "failure_timestamp": "2024-12-15T20:00:00",
+    "degradation_start_timestamp": "2024-12-14T04:00:00"
+  },
+  {
+    "machine_id": "PUMP-002",
+    "failure_mode": "cavitation",
+    "failure_hour": 1491,
+    "degradation_start_hour": 1457,
+    "degradation_duration_hours": 35,
+    "failure_timestamp": "2024-03-03T03:00:00",
+    "degradation_start_timestamp": "2024-03-01T17:00:00"
+  },
+  {
+    "machine_id": "PUMP-002",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 3286,
+    "degradation_start_hour": 2968,
+    "degradation_duration_hours": 319,
+    "failure_timestamp": "2024-05-16T22:00:00",
+    "degradation_start_timestamp": "2024-05-03T16:00:00"
+  },
+  {
+    "machine_id": "PUMP-002",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 4660,
+    "degradation_start_hour": 4396,
+    "degradation_duration_hours": 265,
+    "failure_timestamp": "2024-07-13T04:00:00",
+    "degradation_start_timestamp": "2024-07-02T04:00:00"
+  },
+  {
+    "machine_id": "PUMP-002",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 5816,
+    "degradation_start_hour": 5588,
+    "degradation_duration_hours": 229,
+    "failure_timestamp": "2024-08-30T08:00:00",
+    "degradation_start_timestamp": "2024-08-20T20:00:00"
+  },
+  {
+    "machine_id": "PUMP-002",
+    "failure_mode": "cavitation",
+    "failure_hour": 6680,
+    "degradation_start_hour": 6604,
+    "degradation_duration_hours": 77,
+    "failure_timestamp": "2024-10-05T08:00:00",
+    "degradation_start_timestamp": "2024-10-02T04:00:00"
+  },
+  {
+    "machine_id": "PUMP-002",
+    "failure_mode": "cavitation",
+    "failure_hour": 8213,
+    "degradation_start_hour": 8126,
+    "degradation_duration_hours": 88,
+    "failure_timestamp": "2024-12-08T05:00:00",
+    "degradation_start_timestamp": "2024-12-04T14:00:00"
+  },
+  {
+    "machine_id": "MOTOR-001",
+    "failure_mode": "overheating",
+    "failure_hour": 884,
+    "degradation_start_hour": 753,
+    "degradation_duration_hours": 132,
+    "failure_timestamp": "2024-02-06T20:00:00",
+    "degradation_start_timestamp": "2024-02-01T09:00:00"
+  },
+  {
+    "machine_id": "MOTOR-001",
+    "failure_mode": "misalignment",
+    "failure_hour": 2417,
+    "degradation_start_hour": 2376,
+    "degradation_duration_hours": 42,
+    "failure_timestamp": "2024-04-10T17:00:00",
+    "degradation_start_timestamp": "2024-04-09T00:00:00"
+  },
+  {
+    "machine_id": "MOTOR-001",
+    "failure_mode": "electrical_failure",
+    "failure_hour": 4181,
+    "degradation_start_hour": 4132,
+    "degradation_duration_hours": 50,
+    "failure_timestamp": "2024-06-23T05:00:00",
+    "degradation_start_timestamp": "2024-06-21T04:00:00"
+  },
+  {
+    "machine_id": "MOTOR-001",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 6099,
+    "degradation_start_hour": 5769,
+    "degradation_duration_hours": 331,
+    "failure_timestamp": "2024-09-11T03:00:00",
+    "degradation_start_timestamp": "2024-08-28T09:00:00"
+  },
+  {
+    "machine_id": "MOTOR-001",
+    "failure_mode": "overheating",
+    "failure_hour": 7015,
+    "degradation_start_hour": 6875,
+    "degradation_duration_hours": 141,
+    "failure_timestamp": "2024-10-19T07:00:00",
+    "degradation_start_timestamp": "2024-10-13T11:00:00"
+  },
+  {
+    "machine_id": "MOTOR-001",
+    "failure_mode": "overheating",
+    "failure_hour": 8613,
+    "degradation_start_hour": 8539,
+    "degradation_duration_hours": 75,
+    "failure_timestamp": "2024-12-24T21:00:00",
+    "degradation_start_timestamp": "2024-12-21T19:00:00"
+  },
+  {
+    "machine_id": "MOTOR-002",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 1190,
+    "degradation_start_hour": 972,
+    "degradation_duration_hours": 219,
+    "failure_timestamp": "2024-02-19T14:00:00",
+    "degradation_start_timestamp": "2024-02-10T12:00:00"
+  },
+  {
+    "machine_id": "MOTOR-002",
+    "failure_mode": "misalignment",
+    "failure_hour": 2555,
+    "degradation_start_hour": 2478,
+    "degradation_duration_hours": 78,
+    "failure_timestamp": "2024-04-16T11:00:00",
+    "degradation_start_timestamp": "2024-04-13T06:00:00"
+  },
+  {
+    "machine_id": "MOTOR-002",
+    "failure_mode": "overheating",
+    "failure_hour": 3291,
+    "degradation_start_hour": 3196,
+    "degradation_duration_hours": 96,
+    "failure_timestamp": "2024-05-17T03:00:00",
+    "degradation_start_timestamp": "2024-05-13T04:00:00"
+  },
+  {
+    "machine_id": "MOTOR-002",
+    "failure_mode": "misalignment",
+    "failure_hour": 4232,
+    "degradation_start_hour": 4181,
+    "degradation_duration_hours": 52,
+    "failure_timestamp": "2024-06-25T08:00:00",
+    "degradation_start_timestamp": "2024-06-23T05:00:00"
+  },
+  {
+    "machine_id": "MOTOR-002",
+    "failure_mode": "overheating",
+    "failure_hour": 5140,
+    "degradation_start_hour": 5011,
+    "degradation_duration_hours": 130,
+    "failure_timestamp": "2024-08-02T04:00:00",
+    "degradation_start_timestamp": "2024-07-27T19:00:00"
+  },
+  {
+    "machine_id": "MOTOR-002",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 6417,
+    "degradation_start_hour": 6073,
+    "degradation_duration_hours": 345,
+    "failure_timestamp": "2024-09-24T09:00:00",
+    "degradation_start_timestamp": "2024-09-10T01:00:00"
+  },
+  {
+    "machine_id": "MOTOR-002",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 7329,
+    "degradation_start_hour": 7200,
+    "degradation_duration_hours": 130,
+    "failure_timestamp": "2024-11-01T09:00:00",
+    "degradation_start_timestamp": "2024-10-27T00:00:00"
+  },
+  {
+    "machine_id": "COMP-001",
+    "failure_mode": "overheating",
+    "failure_hour": 1193,
+    "degradation_start_hour": 1052,
+    "degradation_duration_hours": 142,
+    "failure_timestamp": "2024-02-19T17:00:00",
+    "degradation_start_timestamp": "2024-02-13T20:00:00"
+  },
+  {
+    "machine_id": "COMP-001",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 2410,
+    "degradation_start_hour": 2215,
+    "degradation_duration_hours": 196,
+    "failure_timestamp": "2024-04-10T10:00:00",
+    "degradation_start_timestamp": "2024-04-02T07:00:00"
+  },
+  {
+    "machine_id": "COMP-001",
+    "failure_mode": "overheating",
+    "failure_hour": 3307,
+    "degradation_start_hour": 3192,
+    "degradation_duration_hours": 116,
+    "failure_timestamp": "2024-05-17T19:00:00",
+    "degradation_start_timestamp": "2024-05-13T00:00:00"
+  },
+  {
+    "machine_id": "COMP-001",
+    "failure_mode": "electrical_failure",
+    "failure_hour": 4078,
+    "degradation_start_hour": 4035,
+    "degradation_duration_hours": 44,
+    "failure_timestamp": "2024-06-18T22:00:00",
+    "degradation_start_timestamp": "2024-06-17T03:00:00"
+  },
+  {
+    "machine_id": "COMP-001",
+    "failure_mode": "electrical_failure",
+    "failure_hour": 5267,
+    "degradation_start_hour": 5216,
+    "degradation_duration_hours": 52,
+    "failure_timestamp": "2024-08-07T11:00:00",
+    "degradation_start_timestamp": "2024-08-05T08:00:00"
+  },
+  {
+    "machine_id": "COMP-001",
+    "failure_mode": "electrical_failure",
+    "failure_hour": 6350,
+    "degradation_start_hour": 6281,
+    "degradation_duration_hours": 70,
+    "failure_timestamp": "2024-09-21T14:00:00",
+    "degradation_start_timestamp": "2024-09-18T17:00:00"
+  },
+  {
+    "machine_id": "COMP-001",
+    "failure_mode": "bearing_wear",
+    "failure_hour": 8225,
+    "degradation_start_hour": 8022,
+    "degradation_duration_hours": 204,
+    "failure_timestamp": "2024-12-08T17:00:00",
+    "degradation_start_timestamp": "2024-11-30T06:00:00"
+  }
+]
