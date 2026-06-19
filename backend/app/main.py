@@ -9,12 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .graph import get_graph
 from .models import InputQuery
+from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
 from .services.rag_config import RAGConfig
 
 config = RAGConfig()
 pipeline = IngestionPipeline(config)   # instancia única — carga el modelo de embeddings una vez
 graph = get_graph(config)
+store = ConversationStore()
 
 app = FastAPI(
     title="AMIA Backend",
@@ -70,10 +72,12 @@ async def ingest(file: UploadFile = File(...)) -> dict:
 
 @app.post("/process_input")
 async def process_input(user_input: InputQuery) -> dict:
+    history = store.get_history(user_input.session_id)
+
     try:
         result = await graph.ainvoke({
             "query": user_input.query,
-            "conversation_history": [],
+            "conversation_history": history,
             "retrieved_docs": [],
             "sensor_analysis": None,
             "economic_impact": None,
@@ -85,10 +89,13 @@ async def process_input(user_input: InputQuery) -> dict:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    store.append_turn(user_input.session_id, user_input.query, result["final_response"])
+
     return {
         "response": result["final_response"],
         "sources": result["sources"],
         "agent_used": result.get("next_agent", "unknown"),
+        "session_id": user_input.session_id,
     }
 
 

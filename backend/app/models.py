@@ -1,6 +1,8 @@
 
 
-from pydantic import BaseModel
+import uuid
+
+from pydantic import BaseModel, Field
 
 
 class Documents(BaseModel):
@@ -23,4 +25,5 @@ class DocumentsChunks(BaseModel):
 
 class InputQuery(BaseModel):
     query: str
-    
+    session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
