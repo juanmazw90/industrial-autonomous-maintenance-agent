@@ -24,7 +24,9 @@ data/raw/
 data/processed/
 mlruns/
 mlartifacts/
+mlflow.db
 qdrant_storage/
+data/synthetic/model_evaluation.png
 
 # Environment
 .env
