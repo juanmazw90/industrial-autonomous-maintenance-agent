@@ -5,8 +5,15 @@ Cada tool recibe argumentos simples y devuelve un dict serializable,
 para que el resultado pueda almacenarse en AMIAState.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from amia_shared.schemas import MACHINE_CONFIGS
 from .retrieval import Retriever, RetrievedChunk
+
+if TYPE_CHECKING:
+    from .predictor import FailurePredictor
 
 
 def build_search_tool(retriever: Retriever):
@@ -38,3 +45,32 @@ def get_machine_info(machine_id: str) -> dict:
         available = list(MACHINE_CONFIGS.keys())
         return {"error": f"Máquina '{machine_id}' no encontrada.", "available": available}
     return {"machine_id": machine_id.upper(), **cfg}
+
+
+def build_predict_failure_tool(predictor: FailurePredictor):
+    """
+    Factoría: devuelve la tool de predicción de fallos con el predictor ya inyectado.
+    El Supervisor la invoca cuando detecta un machine_id en la query del usuario.
+    """
+    def predict_failure_risk(machine_id: str) -> dict:
+        """
+        Predice el riesgo de fallo de una máquina en las próximas 24 horas.
+
+        Args:
+            machine_id: ID de la máquina (ej. 'COMP-001', 'PUMP-002', 'MOTOR-001')
+
+        Returns:
+            Dict con failure_probability, risk_score, alert_level (green/yellow/red),
+            is_high_risk y el timestamp de la última lectura usada.
+        """
+        if not predictor.initialized:
+            return {
+                "error": "El predictor no está disponible.",
+                "hint": "Ejecuta train_failure_prediction.py para entrenar el modelo.",
+            }
+        try:
+            return predictor.predict(machine_id)
+        except ValueError as e:
+            return {"error": str(e)}
+
+    return predict_failure_risk

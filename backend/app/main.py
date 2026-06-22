@@ -1,4 +1,7 @@
 import asyncio
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()  # carga .env antes de que los agentes lean ANTHROPIC_API_KEY
@@ -8,20 +11,40 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .graph import get_graph
-from .models import InputQuery
+from .models import FailurePredictionResponse, InputQuery
 from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
+from .services.predictor import FailurePredictor
 from .services.rag_config import RAGConfig
 
-config = RAGConfig()
-pipeline = IngestionPipeline(config)   # instancia única — carga el modelo de embeddings una vez
-graph = get_graph(config)
-store = ConversationStore()
+REPO_ROOT = Path(__file__).resolve().parents[3]
+MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{REPO_ROOT / 'mlflow.db'}")
+DATA_PATH  = Path(os.getenv("DATA_PATH", REPO_ROOT / "data/synthetic/sensor_readings.parquet"))
+
+config    = RAGConfig()
+pipeline  = IngestionPipeline(config)
+graph     = get_graph(config)
+store     = ConversationStore()
+predictor = FailurePredictor()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Inicializar predictor en un thread pool para no bloquear el event loop
+    # (la construcción de features es CPU-bound y tarda ~30s)
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, predictor.initialize, MLFLOW_URI, DATA_PATH)
+    except Exception as e:
+        print(f"[Predictor] No se pudo inicializar: {e}. El endpoint /predict/failure no estará disponible.")
+    yield
+
 
 app = FastAPI(
     title="AMIA Backend",
     description="Autonomous Maintenance Intelligence Agent API",
-    version="0.1.0",
+    version="0.2.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -33,8 +56,12 @@ app.add_middleware(
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "version": "0.1.0"}
+async def health() -> dict:
+    return {
+        "status": "ok",
+        "version": "0.2.0",
+        "predictor_ready": predictor.initialized,
+    }
 
 
 @app.post("/ingest")
@@ -42,9 +69,6 @@ async def ingest(file: UploadFile = File(...)) -> dict:
     """
     Recibe un archivo (PDF, Markdown, TXT), lo parsea, genera embeddings
     y almacena los chunks en Qdrant.
-
-    El pipeline es síncrono (SentenceTransformer + QdrantClient sync),
-    así que lo ejecutamos en un thread pool para no bloquear el event loop.
     """
     content = await file.read()
     if not content:
@@ -55,7 +79,6 @@ async def ingest(file: UploadFile = File(...)) -> dict:
     except ValueError as e:
         raise HTTPException(status_code=415, detail=str(e))
 
-    # run_in_executor → ejecuta código síncrono sin bloquear el event loop async
     loop = asyncio.get_event_loop()
     try:
         n_chunks = await loop.run_in_executor(None, pipeline.ingest, doc)
@@ -97,6 +120,35 @@ async def process_input(user_input: InputQuery) -> dict:
         "agent_used": result.get("next_agent", "unknown"),
         "session_id": user_input.session_id,
     }
+
+
+@app.post("/predict/failure", response_model=FailurePredictionResponse)
+async def predict_failure(machine_id: str) -> dict:
+    """
+    Predice si una máquina fallará en las próximas 24 horas.
+
+    Devuelve la probabilidad de fallo, un nivel de alerta (green/yellow/red)
+    y si supera el umbral óptimo calibrado durante el entrenamiento.
+    """
+    if not predictor.initialized:
+        raise HTTPException(
+            status_code=503,
+            detail="El predictor no está disponible. Verifica que el modelo fue entrenado con train_failure_prediction.py.",
+        )
+    try:
+        result = predictor.predict(machine_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return result
+
+
+@app.get("/predict/failure/all")
+async def predict_all_machines() -> list[dict]:
+    """Devuelve predicciones para todas las máquinas conocidas."""
+    if not predictor.initialized:
+        raise HTTPException(status_code=503, detail="El predictor no está disponible.")
+    return predictor.predict_all()
 
 
 def run() -> None:
