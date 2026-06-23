@@ -33,16 +33,22 @@ def _route(state: AMIAState) -> str:
     return state.get("next_agent", "doc_expert")
 
 
-def build_graph(config: RAGConfig, predictor: FailurePredictor | None = None) -> Any:
+def build_graph(
+    config: RAGConfig,
+    predictor: FailurePredictor | None = None,
+    retriever: Retriever | None = None,
+) -> Any:
     """
     Construye y compila el grafo. Se llama una vez al arrancar la app.
 
     Args:
         config:    configuración RAG (embeddings, Qdrant, etc.)
-        predictor: instancia de FailurePredictor (puede estar sin inicializar todavía —
-                   se inicializa en el lifespan handler tras arrancar el grafo)
+        predictor: instancia de FailurePredictor (puede estar sin inicializar todavía)
+        retriever: instancia de Retriever; si None se crea internamente.
+                   Pasar explícitamente permite compartir el embedder con SemanticCache.
     """
-    retriever  = Retriever(config)
+    if retriever is None:
+        retriever = Retriever(config)
     search_fn  = build_search_tool(retriever)
 
     graph = StateGraph(AMIAState)
@@ -86,11 +92,15 @@ def build_graph(config: RAGConfig, predictor: FailurePredictor | None = None) ->
 _graph_instance = None
 
 
-def get_graph(config: RAGConfig | None = None, predictor: FailurePredictor | None = None) -> Any:
+def get_graph(
+    config: RAGConfig | None = None,
+    predictor: FailurePredictor | None = None,
+    retriever: Retriever | None = None,
+) -> Any:
     """Devuelve la instancia compilada del grafo (singleton)."""
     global _graph_instance
     if _graph_instance is None:
         if config is None:
             config = RAGConfig()
-        _graph_instance = build_graph(config, predictor)
+        _graph_instance = build_graph(config, predictor, retriever)
     return _graph_instance
