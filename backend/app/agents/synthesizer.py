@@ -1,8 +1,9 @@
 """
 synthesizer.py — Nodo generador de la respuesta final.
 
-Recibe la query y los docs recuperados por DocExpert,
-y genera una respuesta citando fuentes con Claude Sonnet.
+Recibe la query y el contexto acumulado por los agentes anteriores
+(retrieved_docs del DocExpert, sensor_analysis del SensorAnalyst)
+y genera una respuesta en lenguaje natural con Claude Sonnet.
 
 Es el único nodo que produce texto hacia el usuario.
 """
@@ -23,9 +24,15 @@ Si el contexto no contiene la respuesta, dilo claramente — no inventes.
 Responde en el mismo idioma que usa el usuario.
 Sé preciso y conciso: prioriza procedimientos paso a paso cuando corresponda."""
 
+_ALERT_EMOJI = {"green": "🟢", "yellow": "🟡", "red": "🔴"}
+_ALERT_LABEL = {
+    "green":  "RIESGO BAJO",
+    "yellow": "RIESGO MODERADO",
+    "red":    "RIESGO ALTO — ATENCIÓN INMEDIATA",
+}
 
-def _build_context(docs: list[dict]) -> str:
-    """Formatea los chunks recuperados como contexto numerado para el prompt."""
+
+def _build_docs_context(docs: list[dict]) -> str:
     if not docs:
         return "No se encontró documentación relevante."
     parts = []
@@ -37,8 +44,39 @@ def _build_context(docs: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
+def _build_sensor_context(analysis: dict) -> str:
+    if "error" in analysis:
+        hint = analysis.get("hint", "")
+        available = analysis.get("available_machines", [])
+        lines = [f"Error: {analysis['error']}"]
+        if hint:
+            lines.append(hint)
+        if available:
+            lines.append(f"Máquinas disponibles: {', '.join(available)}")
+        return "\n".join(lines)
+
+    mid   = analysis.get("machine_id", "?")
+    prob  = analysis.get("failure_probability", 0.0)
+    level = analysis.get("alert_level", "green")
+    ts    = analysis.get("as_of_timestamp", "")
+    high  = analysis.get("is_high_risk", False)
+    thr   = analysis.get("threshold_used", 0.5)
+
+    emoji = _ALERT_EMOJI.get(level, "⚪")
+    label = _ALERT_LABEL.get(level, level)
+
+    lines = [
+        f"Máquina: {mid}",
+        f"Estado: {emoji} {label}",
+        f"Probabilidad de fallo en las próximas 24h: {prob:.1%}",
+        f"Supera umbral de alerta ({thr:.0%}): {'Sí' if high else 'No'}",
+    ]
+    if ts:
+        lines.append(f"Basado en lectura de: {ts}")
+    return "\n".join(lines)
+
+
 def _build_sources(docs: list[dict]) -> list[dict]:
-    """Construye la lista de fuentes para devolver al frontend."""
     return [
         {
             "index": i + 1,
@@ -52,16 +90,21 @@ def _build_sources(docs: list[dict]) -> list[dict]:
 
 async def synthesizer_node(state: AMIAState) -> dict:
     """
-    Lee:    state["query"], state["retrieved_docs"], state["conversation_history"]
+    Lee:    state["query"], state["retrieved_docs"], state["sensor_analysis"],
+            state["conversation_history"]
     Escribe: state["final_response"], state["sources"]
     """
-    query = state["query"]
-    docs = state.get("retrieved_docs", [])
-    history = state.get("conversation_history", [])
+    query           = state["query"]
+    docs            = state.get("retrieved_docs", [])
+    sensor_analysis = state.get("sensor_analysis")
+    history         = state.get("conversation_history", [])
 
-    context = _build_context(docs)
-
-    user_message = f"Contexto:\n{context}\n\nPregunta: {query}"
+    if sensor_analysis:
+        context = _build_sensor_context(sensor_analysis)
+        user_message = f"Datos del sistema de predicción:\n{context}\n\nPregunta del usuario: {query}"
+    else:
+        context = _build_docs_context(docs)
+        user_message = f"Contexto:\n{context}\n\nPregunta: {query}"
 
     messages = [
         *history,

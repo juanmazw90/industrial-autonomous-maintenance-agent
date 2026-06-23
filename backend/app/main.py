@@ -23,9 +23,9 @@ DATA_PATH  = Path(os.getenv("DATA_PATH", REPO_ROOT / "data/synthetic/sensor_read
 
 config    = RAGConfig()
 pipeline  = IngestionPipeline(config)
-graph     = get_graph(config)
-store     = ConversationStore()
 predictor = FailurePredictor()
+graph     = get_graph(config, predictor)   # predictor se inicializa después en lifespan
+store     = ConversationStore()
 
 
 @asynccontextmanager
