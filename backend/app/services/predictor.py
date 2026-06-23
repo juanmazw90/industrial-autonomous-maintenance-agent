@@ -1,24 +1,27 @@
 """
 predictor.py — Servicio de predicción de fallos industriales.
 
-Carga el modelo XGBoost desde MLflow al arrancar la app, precalcula
-las features para todas las máquinas y sirve predicciones en O(1).
-
 Flujo de inicialización:
   1. Carga modelo desde MLflow Model Registry
-  2. Descarga artefactos de inferencia (feature_cols, baselines, threshold)
-  3. Lee el parquet histórico y construye features para todas las máquinas
-  4. Guarda el último vector de features por máquina en memoria
+  2. Descarga artefactos de inferencia (feature_cols, threshold)
+  3. Lee el parquet histórico, calcula baselines y construye features iniciales
+  4. Guarda el último vector de features + un buffer de lecturas raw por máquina
 
-Flujo de predicción (una vez inicializado):
-  1. Recupera el último vector de features de la máquina
-  2. Puntúa con el modelo y devuelve probabilidad + nivel de alerta
+Flujo de predicción estática:
+  Recupera el último vector de features de la máquina y puntúa en O(1).
+
+Flujo de actualización (simulador / endpoint /sensors/reading):
+  1. Recibe una nueva lectura cruda
+  2. La añade al buffer de la máquina (mantiene últimas 50 lecturas)
+  3. Recalcula features desde el buffer sin groupby (una sola máquina → rápido)
+  4. Actualiza _latest_features y devuelve la predicción actualizada
 """
 
 from __future__ import annotations
 
 import json
 import warnings
+from collections import deque
 from pathlib import Path
 
 import mlflow
@@ -29,7 +32,6 @@ import xgboost as xgb
 
 warnings.filterwarnings("ignore")
 
-# ── Constantes de feature engineering (deben coincidir con el script de entrenamiento) ──
 SENSORS = [
     "vibration_rms",
     "vibration_peak",
@@ -40,13 +42,14 @@ SENSORS = [
 ]
 WINDOWS = {"8h": 8, "24h": 24}
 BASELINE_HOURS = 168
+BUFFER_SIZE = 50  # número de lecturas raw a mantener por máquina
 
 LEAKAGE_COLS = ["failure_mode", "is_failure", "degradation_fraction", "rul_hours"]
 META_COLS = ["timestamp", "machine_id", "machine_type", "label"]
 MACHINE_TYPE_MAP = {"compressor": 0, "induction_motor": 1, "centrifugal_pump": 2}
 
 
-# ── Feature engineering ───────────────────────────────────────────────────────
+# ── Feature engineering sobre múltiples máquinas (inicialización) ─────────────
 
 def _add_rolling_stats(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
@@ -120,6 +123,43 @@ def _build_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ── Feature engineering sobre una sola máquina (actualización en tiempo real) ──
+# Sin groupby → mucho más rápido (BUFFER_SIZE = 50 filas)
+
+def _build_features_single(buf: pd.DataFrame, baselines: dict[str, float]) -> pd.DataFrame:
+    """
+    Recalcula todas las features sobre el buffer de una sola máquina.
+    Usa los baselines precalculados durante la inicialización para _vs_baseline.
+    """
+    out = buf.copy()
+
+    # Rolling stats + slopes + deltas — sin groupby
+    for sensor in SENSORS:
+        s = out[sensor]
+        for label, w in WINDOWS.items():
+            out[f"{sensor}_mean_{label}"] = s.rolling(w, min_periods=2).mean()
+            out[f"{sensor}_std_{label}"]  = s.rolling(w, min_periods=2).std()
+            out[f"{sensor}_max_{label}"]  = s.rolling(w, min_periods=2).max()
+            out[f"{sensor}_kurt_{label}"] = s.rolling(w, min_periods=4).kurt()
+            out[f"{sensor}_slope_{label}"] = s.rolling(w, min_periods=2).apply(_linear_slope, raw=True)
+        out[f"{sensor}_delta_1h"]  = s.diff(1)
+        out[f"{sensor}_delta_8h"]  = s.diff(8)
+        out[f"{sensor}_delta_24h"] = s.diff(24)
+        out[f"{sensor}_accel"]     = s.diff(1).diff(1)
+        # Baseline normalisation con valor precalculado del período sano inicial
+        out[f"{sensor}_vs_baseline"] = s - baselines.get(sensor, s.mean())
+
+    # Cross-sensor
+    out["current_imbalance"]    = out[["current_phase_a", "current_phase_b", "current_phase_c"]].std(axis=1)
+    out["temp_per_rpm"]         = out["temperature_bearing"] / out["speed_rpm"].replace(0, np.nan)
+    out["vibro_thermal_stress"] = out["vibration_rms"] * out["temperature_bearing"]
+    out["temp_ratio"]           = out["temperature_bearing"] / out["temperature_motor"].replace(0, np.nan)
+    out["current_mean"]         = out[["current_phase_a", "current_phase_b", "current_phase_c"]].mean(axis=1)
+
+    out["machine_type_enc"] = out["machine_type"].map(MACHINE_TYPE_MAP)
+    return out
+
+
 # ── Predictor ─────────────────────────────────────────────────────────────────
 
 class FailurePredictor:
@@ -129,22 +169,20 @@ class FailurePredictor:
         self.threshold: float = 0.5
         self._latest_features: dict[str, pd.Series] = {}
         self._latest_timestamps: dict[str, str] = {}
+        # buffer de lecturas raw por máquina para actualizaciones en tiempo real
+        self._buffers: dict[str, deque] = {}
+        # baselines precalculados: sensor → {machine_id → valor promedio}
+        self._baselines: dict[str, dict[str, float]] = {}
         self.initialized: bool = False
 
     def initialize(self, mlflow_uri: str, data_path: Path) -> None:
-        """
-        Carga el modelo desde MLflow y precalcula las features para todas las máquinas.
-        Se llama una vez al arrancar la app (lifespan handler).
-        """
         print("[Predictor] Iniciando...")
         mlflow.set_tracking_uri(mlflow_uri)
 
-        # Cargar modelo desde Model Registry
         model_uri = "models:/amia-failure-prediction/latest"
         self.model = mlflow.xgboost.load_model(model_uri)
         print(f"[Predictor] Modelo cargado desde '{model_uri}'")
 
-        # Descargar artefactos de inferencia
         client = mlflow.tracking.MlflowClient()
         latest_versions = client.get_latest_versions("amia-failure-prediction")
         if not latest_versions:
@@ -158,30 +196,35 @@ class FailurePredictor:
             self.threshold = json.load(f)["threshold"]
         print(f"[Predictor] {len(self.feature_cols)} features | umbral óptimo: {self.threshold:.3f}")
 
-        # Precalcular features para todas las máquinas
         print("[Predictor] Construyendo features para todas las máquinas...")
         df = pd.read_parquet(data_path)
         df = df.sort_values(["machine_id", "timestamp"]).reset_index(drop=True)
+
+        # Guardar baselines del período sano (primeras BASELINE_HOURS lecturas por máquina)
+        for sensor in SENSORS:
+            self._baselines[sensor] = {}
+            for mid in df["machine_id"].unique():
+                vals = df.loc[df["machine_id"] == mid, sensor]
+                self._baselines[sensor][mid] = float(vals.iloc[:BASELINE_HOURS].mean())
+
         df_feat = _build_features(df)
 
-        for machine_id in df_feat["machine_id"].unique():
-            machine_rows = df_feat[df_feat["machine_id"] == machine_id]
-            latest = machine_rows.iloc[-1]
-            self._latest_features[machine_id] = latest
-            self._latest_timestamps[machine_id] = str(latest["timestamp"])
+        for mid in df_feat["machine_id"].unique():
+            rows = df_feat[df_feat["machine_id"] == mid]
+            self._latest_features[mid] = rows.iloc[-1]
+            self._latest_timestamps[mid] = str(rows.iloc[-1]["timestamp"])
+            # Buffer inicial: últimas BUFFER_SIZE lecturas raw de cada máquina
+            raw_rows = df[df["machine_id"] == mid].tail(BUFFER_SIZE)
+            self._buffers[mid] = deque(
+                raw_rows.to_dict("records"), maxlen=BUFFER_SIZE
+            )
 
         self.initialized = True
-        machines = list(self._latest_features.keys())
-        print(f"[Predictor] Listo. Máquinas disponibles: {machines}")
+        print(f"[Predictor] Listo. Máquinas: {sorted(self._latest_features.keys())}")
+
+    # ── Predicción ────────────────────────────────────────────────────────────
 
     def predict(self, machine_id: str) -> dict:
-        """
-        Devuelve la probabilidad de fallo en las próximas 24h para una máquina.
-
-        Returns:
-            machine_id, failure_probability, risk_score, alert_level,
-            is_high_risk, threshold_used, as_of_timestamp
-        """
         if not self.initialized or self.model is None:
             raise RuntimeError("El predictor no está inicializado.")
 
@@ -194,23 +237,55 @@ class FailurePredictor:
         X = pd.DataFrame([latest_row[self.feature_cols]])
         prob = float(self.model.predict_proba(X)[0, 1])
 
-        if prob >= 0.7:
-            alert_level = "red"
-        elif prob >= 0.35:
-            alert_level = "yellow"
-        else:
-            alert_level = "green"
-
         return {
             "machine_id": machine_id,
             "failure_probability": round(prob, 4),
             "risk_score": round(prob, 4),
-            "alert_level": alert_level,
+            "alert_level": self._alert_level(prob),
             "is_high_risk": prob >= self.threshold,
             "threshold_used": round(self.threshold, 3),
             "as_of_timestamp": self._latest_timestamps.get(machine_id, ""),
         }
 
     def predict_all(self) -> list[dict]:
-        """Devuelve predicciones para todas las máquinas conocidas."""
         return [self.predict(mid) for mid in sorted(self._latest_features.keys())]
+
+    # ── Actualización en tiempo real ──────────────────────────────────────────
+
+    def update_with_reading(self, reading: dict) -> dict:
+        """
+        Incorpora una nueva lectura de sensores, recalcula las features de esa
+        máquina y devuelve la predicción actualizada.
+
+        Usado por POST /sensors/reading. Es síncrono y tarda ~5ms (buffer de 50 filas).
+        """
+        if not self.initialized or self.model is None:
+            raise RuntimeError("El predictor no está inicializado.")
+
+        machine_id = str(reading.get("machine_id", "")).upper()
+        if machine_id not in self._buffers:
+            available = sorted(self._buffers.keys())
+            raise ValueError(f"Máquina '{machine_id}' no encontrada. Disponibles: {available}")
+
+        # Añadir al buffer (el deque descarta el más antiguo automáticamente)
+        self._buffers[machine_id].append(reading)
+
+        # Recalcular features sobre el buffer de esta máquina
+        buf_df = pd.DataFrame(list(self._buffers[machine_id]))
+        machine_baselines = {s: self._baselines[s].get(machine_id, 0.0) for s in SENSORS}
+        feat_df = _build_features_single(buf_df, machine_baselines)
+
+        # Actualizar último vector de features
+        self._latest_features[machine_id] = feat_df.iloc[-1]
+        ts = reading.get("timestamp", "")
+        self._latest_timestamps[machine_id] = str(ts)
+
+        return self.predict(machine_id)
+
+    @staticmethod
+    def _alert_level(prob: float) -> str:
+        if prob >= 0.7:
+            return "red"
+        if prob >= 0.35:
+            return "yellow"
+        return "green"

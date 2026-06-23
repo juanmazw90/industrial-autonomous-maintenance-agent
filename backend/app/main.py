@@ -11,7 +11,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .graph import get_graph
-from .models import FailurePredictionResponse, InputQuery
+from .models import FailurePredictionResponse, IncomingSensorReading, InputQuery
 from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
 from .services.predictor import FailurePredictor
@@ -149,6 +149,26 @@ async def predict_all_machines() -> list[dict]:
     if not predictor.initialized:
         raise HTTPException(status_code=503, detail="El predictor no está disponible.")
     return predictor.predict_all()
+
+
+@app.post("/sensors/reading", response_model=FailurePredictionResponse)
+async def receive_sensor_reading(reading: IncomingSensorReading) -> dict:
+    """
+    Ingesta una lectura de sensores en tiempo real.
+
+    Actualiza el buffer de la máquina, recalcula las features y devuelve
+    la predicción actualizada. Usado por el simulador y sistemas SCADA.
+    """
+    if not predictor.initialized:
+        raise HTTPException(status_code=503, detail="El predictor no está disponible.")
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None, predictor.update_with_reading, reading.model_dump()
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return result
 
 
 def run() -> None:
