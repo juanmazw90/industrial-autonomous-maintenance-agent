@@ -54,3 +54,8 @@ Thumbs.db
 
 # Notebooks (outputs)
 .ipynb_checkpoints/
+
+# Documentos de portfolio / planificación (locales)
+ROADMAP.md
+AMIA_Proyecto_Portfolio_Industrial.md
+docs/
