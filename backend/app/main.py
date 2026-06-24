@@ -19,7 +19,7 @@ from .services.rag_config import RAGConfig
 from .services.retrieval import Retriever
 from .services.semantic_cache import SemanticCache
 
-REPO_ROOT  = Path(__file__).resolve().parents[3]
+REPO_ROOT  = Path(__file__).resolve().parents[2]
 MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{REPO_ROOT / 'mlflow.db'}")
 DATA_PATH  = Path(os.getenv("DATA_PATH", REPO_ROOT / "data/synthetic/sensor_readings.parquet"))
 
