@@ -10,7 +10,7 @@ Cada versión es independientemente ejecutable y demostrable. El orden importa: 
 |---------|--------|-------------|--------|
 | **V0** | Fundación + Datos Sintéticos | 1-2 | ✅ Completo |
 | **V1** | RAG + Chat Agent + Redis Cache | 2-3 | ✅ Completo |
-| **V2** | Failure Prediction + Semantic Cache | 2-3 | 🔲 Pendiente |
+| **V2** | Failure Prediction + Semantic Cache | 2-3 | ✅ Completo |
 | **V3** | Root Cause Analysis + Economic Impact | 2-3 | 🔲 Pendiente |
 | **V4** | RUL + Observabilidad | 3-4 | 🔲 Pendiente |
 | **V5** | Producción & Portfolio Polish | 2-3 | 🔲 Pendiente |
@@ -79,46 +79,47 @@ cd frontend && npm run dev      # localhost:3000
 
 ---
 
-## V2 — Failure Prediction + Semantic Cache
+## V2 — Failure Prediction + Semantic Cache ✅
 
-**Objetivo**: El agente predice riesgo de fallo en tiempo real. Dashboard con indicadores por máquina. Redis Semantic Cache para consultas similares.
+**Objetivo**: El agente predice riesgo de fallo en tiempo real. Dashboard con indicadores por máquina. Semantic Cache para consultas similares.
 
-**Introduce**:
+**Implementado**:
 
 ### ML — Failure Prediction
 - Feature engineering sobre `sensor_readings.parquet` (V0): RMS, std, kurtosis, tendencia en ventanas de 1h/8h/24h
-- Modelo XGBoost/LightGBM: clasificación binaria (fallo en próximas 24h)
-- MLflow: experiment tracking + Model Registry (versiones del modelo)
-- Endpoint: `POST /predict/failure` → `{machine_id, risk_score, failure_probability}`
-- Tool del agente: `predict_failure_risk(machine_id)` — el Supervisor la activa cuando detecta un `machine_id` en la query
-- Simulador de sensores: script que publica lecturas al backend cada N segundos
-- Dashboard: tarjetas por máquina con semáforo verde/amarillo/rojo en tiempo real
+- Modelo XGBoost: clasificación binaria (fallo en próximas 24h); `scale_pos_weight = sqrt(52)*3 ≈ 21` para clase desbalanceada (52:1); métrica primaria PR-AUC
+- MLflow con backend SQLite (`mlflow.db`) — experiment tracking + Model Registry; artefactos: `feature_cols.json`, `baselines.json`, `optimal_threshold.json`
+- Buffer circular por máquina (`deque` de 50 lecturas) para feature engineering en tiempo real (~5ms vs ~30s con rebuild completo)
+- Endpoints: `POST /predict/failure`, `GET /predict/failure/all`, `POST /sensors/reading`
+- Tool del agente: `predict_failure_risk(machine_id)` — nodo `sensor_analyst` añadido al grafo LangGraph; sólo disponible si el predictor está inicializado
+- `scripts/sensor_simulator.py` — replay de datos históricos con detección de transiciones de nivel de alerta
+- Dashboard Next.js: polling cada 3s (elegido sobre WebSockets por simplicidad), tarjetas con semáforo verde/amarillo/rojo, banner de alerta crítica
 
-### Redis — Semantic Cache
-- **Semantic Cache**: antes de llamar al LLM, busca queries similares en Redis usando embeddings
-  - Si similitud coseno > 0.95 con una query cacheada → devuelve la respuesta almacenada
-  - Implementación: `redis-py` con `RedisSearch` o búsqueda vectorial en Qdrant (colección `query_cache`)
-  - Diferencia clave con Exact Cache: "¿qué es el desgaste?" y "explícame el desgaste" → misma respuesta cacheada
-  - TTL más corto (1-2h) porque el contexto puede cambiar con nuevas ingestas
-- **Cache hit ratio** visible en logs y en `/health` extendido
+### Semantic Cache
+- Implementado sobre **Qdrant** (ya en el stack), colección `query_cache` — descartado Redis con RedisSearch para evitar añadir dependencia
+- Reutiliza el mismo `SentenceTransformer` del Retriever (no carga el modelo dos veces)
+- Similitud coseno > 0.95 → cache hit; TTL 1h verificado en payload (`cached_at`), no hay TTL nativo en Qdrant
+- Sólo cachea respuestas de `doc_expert` — las predicciones de sensores se excluyen deliberadamente (cambian en tiempo real)
+- `/health` devuelve `semantic_cache: {hits, misses, hit_rate, cached_queries}`
 
 **Stack nuevo**:
-- `mlflow` — experiment tracking + model registry (nuevo servicio en Docker Compose)
-- `xgboost` / `lightgbm` — modelos de clasificación
+- `mlflow` — experiment tracking + model registry (SQLite local, sin servicio Docker adicional)
+- `xgboost` — modelo de clasificación
 - `scikit-learn` — pipelines de feature engineering
-- WebSockets o polling SSE para streaming de sensores al dashboard
 
 **Decisión de diseño**: el Semantic Cache se implementa como middleware entre FastAPI y LangGraph — intercepta antes de `graph.ainvoke()` y guarda después. No modifica los nodos del grafo.
 
 **Entregable**:
 ```bash
-# Descomentar mlflow en infra/docker-compose.yml
-docker compose up -d
-python ml/amia_ml/train_failure_prediction.py  # entrena + registra en MLflow
+docker compose -f infra/docker-compose.yml up -d
+uv run python ml/amia_ml/train_failure_prediction.py   # entrena + registra en MLflow
+uv run uvicorn app.main:app --app-dir backend --port 8000
+cd frontend && npm run dev                              # localhost:3000/dashboard
+uv run python scripts/sensor_simulator.py --interval 0.1
 # → Dashboard: 5 máquinas en tiempo real
 # → Una máquina entra en riesgo alto → agente genera alerta automática
-# → Segunda consulta idéntica o similar → respuesta desde Semantic Cache
-# → /health devuelve cache_hit_ratio: 0.43
+# → Segunda consulta similar → respuesta desde Semantic Cache
+# → /health devuelve semantic_cache.hit_rate
 ```
 
 ---
@@ -152,7 +153,7 @@ orden de trabajo creada con: diagnóstico + costo estimado ($X/h) + SOP adjunto
 
 **Introduce**:
 - Modelo LSTM / Temporal Fusion Transformer (TFT) para RUL (horas restantes ± intervalo de confianza)
-- **LangGraph** — reemplaza el agente lineal por un grafo de estados: `Analyze → Plan → Execute → Summarize`
+- **LangGraph** (ya en uso desde V1) — extender el grafo con nodos de planificación y ejecución: `Analyze → Plan → Execute → Summarize`
 - **Langfuse** — observabilidad LLM: traces, latencia por tool, costo de tokens por sesión
 - Sistema de alertas: si RUL < umbral configurable → notificación automática
 - Tool del agente: `predict_rul(machine_id)` → "340 horas ± 40"
@@ -160,7 +161,6 @@ orden de trabajo creada con: diagnóstico + costo estimado ($X/h) + SOP adjunto
 
 **Stack nuevo**:
 - `torch` + `pytorch-lightning` — LSTM/TFT
-- `langgraph` — orquestación del agente
 - `langfuse` — observabilidad LLM (nuevo servicio en Docker Compose)
 
 **Entregable**:
@@ -222,7 +222,8 @@ orden de trabajo creada con: diagnóstico + costo estimado ($X/h) + SOP adjunto
 | Experiment tracking | — | MLflow | ← | ← | ← |
 | LLM observability | — | — | — | Langfuse | ← |
 | ML monitoring | — | — | — | — | Evidently AI |
-| Redis | Historial sesión + Exact Cache | + Semantic Cache | ← | ← | + Rate Limiting |
+| Redis | Historial sesión + Exact Cache | ← | ← | ← | + Rate Limiting |
+| Semantic Cache | — | Qdrant query_cache (coseno > 0.95) | ← | ← | ← |
 | Backend | FastAPI | ← | ← | ← | ← |
 | Frontend | Next.js + Tailwind | ← | ← | ← | ← |
 | Vector DB | Qdrant | ← | ← | ← | ← |
