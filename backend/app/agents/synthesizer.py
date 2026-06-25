@@ -73,6 +73,16 @@ def _build_sensor_context(analysis: dict) -> str:
     ]
     if ts:
         lines.append(f"Basado en lectura de: {ts}")
+
+    root_cause = analysis.get("root_cause")
+    if root_cause and "error" not in root_cause:
+        mode = root_cause["failure_mode"].replace("_", " ").upper()
+        conf = root_cause["confidence"]
+        lines.append(f"\n🔍 Causa raíz: {mode}  (confianza: {conf:.0%})")
+        top3 = sorted(root_cause["probabilities"].items(), key=lambda x: -x[1])[:3]
+        dist = " | ".join(f"{k.replace('_', ' ')}: {v:.0%}" for k, v in top3)
+        lines.append(f"   Distribución: {dist}")
+
     return "\n".join(lines)
 
 

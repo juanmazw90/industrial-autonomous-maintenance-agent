@@ -15,6 +15,7 @@ from .models import FailurePredictionResponse, IncomingSensorReading, InputQuery
 from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
 from .services.predictor import FailurePredictor
+from .services.rca_predictor import RCAPredictor
 from .services.rag_config import RAGConfig
 from .services.retrieval import Retriever
 from .services.semantic_cache import SemanticCache
@@ -26,8 +27,9 @@ DATA_PATH  = Path(os.getenv("DATA_PATH", REPO_ROOT / "data/synthetic/sensor_read
 config    = RAGConfig()
 retriever = Retriever(config)                          # carga SentenceTransformer + Qdrant client
 pipeline  = IngestionPipeline(config)
-predictor = FailurePredictor()
-graph     = get_graph(config, predictor, retriever)    # reutiliza retriever ya creado
+predictor     = FailurePredictor()
+rca_predictor = RCAPredictor()
+graph         = get_graph(config, predictor, retriever, rca_predictor)
 store     = ConversationStore()
 sem_cache = SemanticCache(retriever.embedder, retriever.qdrant)
 
@@ -46,13 +48,17 @@ async def lifespan(app: FastAPI):
         await loop.run_in_executor(None, predictor.initialize, MLFLOW_URI, DATA_PATH)
     except Exception as e:
         print(f"[Predictor] No se pudo inicializar: {e}. /predict/failure no estará disponible.")
+    try:
+        await loop.run_in_executor(None, rca_predictor.initialize, MLFLOW_URI, DATA_PATH)
+    except Exception as e:
+        print(f"[RCAPredictor] No se pudo inicializar: {e}. Diagnóstico RCA no estará disponible.")
     yield
 
 
 app = FastAPI(
     title="AMIA Backend",
     description="Autonomous Maintenance Intelligence Agent API",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -68,10 +74,11 @@ app.add_middleware(
 async def health() -> dict:
     cache_stats = await sem_cache.stats()
     return {
-        "status":          "ok",
-        "version":         "0.2.0",
-        "predictor_ready": predictor.initialized,
-        "semantic_cache":  cache_stats,
+        "status":              "ok",
+        "version":             "0.3.0",
+        "predictor_ready":     predictor.initialized,
+        "rca_predictor_ready": rca_predictor.initialized,
+        "semantic_cache":      cache_stats,
     }
 
 

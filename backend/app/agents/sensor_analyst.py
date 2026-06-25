@@ -22,13 +22,16 @@ _MACHINE_ID_RE = re.compile(r"\b([A-Z]+-\d+)\b")
 
 def make_sensor_analyst_node(
     predict_fn: Callable[[str], dict[str, Any]],
+    predict_rca_fn: Callable[[str], dict[str, Any]] | None = None,
 ) -> Callable[[AMIAState], dict]:
     """
     Factoría del nodo SensorAnalyst.
 
     Args:
-        predict_fn: función síncrona que recibe un machine_id y devuelve
-                    {failure_probability, risk_score, alert_level, ...}
+        predict_fn:     función síncrona → {failure_probability, alert_level, ...}
+        predict_rca_fn: función síncrona opcional → {failure_mode, confidence, ...}
+                        Si está disponible, se llama automáticamente cuando
+                        alert_level != "green" y enriquece el resultado con "root_cause".
     """
 
     def sensor_analyst_node(state: AMIAState) -> dict:
@@ -51,6 +54,13 @@ def make_sensor_analyst_node(
 
         machine_id = match.group(1)
         result = predict_fn(machine_id)
+
+        # RCA: diagnóstico automático cuando hay riesgo detectado
+        if predict_rca_fn is not None and result.get("alert_level") != "green":
+            rca = predict_rca_fn(machine_id)
+            if "error" not in rca:
+                result["root_cause"] = rca
+
         return {"sensor_analysis": result}
 
     return sensor_analyst_node

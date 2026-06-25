@@ -25,8 +25,9 @@ from .agents.supervisor import supervisor_node
 from .agents.synthesizer import synthesizer_node
 from .services.predictor import FailurePredictor
 from .services.rag_config import RAGConfig
+from .services.rca_predictor import RCAPredictor
 from .services.retrieval import Retriever
-from .services.tools import build_predict_failure_tool, build_search_tool
+from .services.tools import build_predict_failure_tool, build_predict_rca_tool, build_search_tool
 
 
 def _route(state: AMIAState) -> str:
@@ -37,6 +38,7 @@ def build_graph(
     config: RAGConfig,
     predictor: FailurePredictor | None = None,
     retriever: Retriever | None = None,
+    rca_predictor: RCAPredictor | None = None,
 ) -> Any:
     """
     Construye y compila el grafo. Se llama una vez al arrancar la app.
@@ -59,8 +61,9 @@ def build_graph(
     graph.add_node("synthesizer",    synthesizer_node)
 
     if predictor is not None:
-        predict_fn = build_predict_failure_tool(predictor)
-        graph.add_node("sensor_analyst", make_sensor_analyst_node(predict_fn))
+        predict_fn     = build_predict_failure_tool(predictor)
+        predict_rca_fn = build_predict_rca_tool(rca_predictor) if rca_predictor is not None else None
+        graph.add_node("sensor_analyst", make_sensor_analyst_node(predict_fn, predict_rca_fn))
     else:
         # Sin predictor el nodo no existe — el supervisor nunca lo elegirá
         # porque sensor_analyst no estará en el enum de routing
@@ -96,11 +99,12 @@ def get_graph(
     config: RAGConfig | None = None,
     predictor: FailurePredictor | None = None,
     retriever: Retriever | None = None,
+    rca_predictor: RCAPredictor | None = None,
 ) -> Any:
     """Devuelve la instancia compilada del grafo (singleton)."""
     global _graph_instance
     if _graph_instance is None:
         if config is None:
             config = RAGConfig()
-        _graph_instance = build_graph(config, predictor, retriever)
+        _graph_instance = build_graph(config, predictor, retriever, rca_predictor)
     return _graph_instance

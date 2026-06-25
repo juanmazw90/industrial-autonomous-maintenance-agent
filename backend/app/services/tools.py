@@ -14,6 +14,7 @@ from .retrieval import Retriever, RetrievedChunk
 
 if TYPE_CHECKING:
     from .predictor import FailurePredictor
+    from .rca_predictor import RCAPredictor
 
 
 def build_search_tool(retriever: Retriever):
@@ -74,3 +75,31 @@ def build_predict_failure_tool(predictor: FailurePredictor):
             return {"error": str(e)}
 
     return predict_failure_risk
+
+
+def build_predict_rca_tool(predictor: RCAPredictor):
+    """
+    Factoría: devuelve la tool de diagnóstico de causa raíz con el predictor inyectado.
+    Se invoca desde sensor_analyst cuando alert_level != "green".
+    """
+    def predict_root_cause(machine_id: str) -> dict:
+        """
+        Diagnostica el modo de fallo activo en una máquina.
+
+        Args:
+            machine_id: ID de la máquina (ej. 'COMP-001', 'PUMP-002')
+
+        Returns:
+            Dict con failure_mode, confidence, probabilities (por clase) y timestamp.
+        """
+        if not predictor.initialized:
+            return {
+                "error": "RCAPredictor no disponible.",
+                "hint": "Ejecuta train_rca.py para entrenar el modelo.",
+            }
+        try:
+            return predictor.predict(machine_id)
+        except ValueError as e:
+            return {"error": str(e)}
+
+    return predict_root_cause

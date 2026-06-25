@@ -1,12 +1,15 @@
 """
-Train the AMIA failure-prediction model and register it in MLflow.
+Entrena el modelo de predicción de fallos de AMIA y regístralo en MLflow.
 
-Usage:
-    uv run python ml/amia_ml/train_failure_prediction.py
+Uso:
 
-Environment variables:
-    MLFLOW_TRACKING_URI  — defaults to local ./mlruns directory
-    DATA_PATH            — defaults to data/synthetic/sensor_readings.parquet
+uv run python ml/amia_ml/train_failure_prediction.py
+
+Variables de entorno:
+
+MLFLOW_TRACKING_URI: por defecto, el directorio local ./mlruns
+
+DATA_PATH: por defecto, data/synthetic/sensor_readings.parquet
 """
 
 from __future__ import annotations
