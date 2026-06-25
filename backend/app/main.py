@@ -15,6 +15,7 @@ from .models import FailurePredictionResponse, IncomingSensorReading, InputQuery
 from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
 from .services.predictor import FailurePredictor
+from .services.cmms import CMMS
 from .services.rca_predictor import RCAPredictor
 from .services.rag_config import RAGConfig
 from .services.retrieval import Retriever
@@ -29,7 +30,8 @@ retriever = Retriever(config)                          # carga SentenceTransform
 pipeline  = IngestionPipeline(config)
 predictor     = FailurePredictor()
 rca_predictor = RCAPredictor()
-graph         = get_graph(config, predictor, retriever, rca_predictor)
+cmms          = CMMS()
+graph         = get_graph(config, predictor, retriever, rca_predictor, cmms)
 store     = ConversationStore()
 sem_cache = SemanticCache(retriever.embedder, retriever.qdrant)
 
@@ -58,7 +60,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AMIA Backend",
     description="Autonomous Maintenance Intelligence Agent API",
-    version="0.3.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
@@ -75,7 +77,7 @@ async def health() -> dict:
     cache_stats = await sem_cache.stats()
     return {
         "status":              "ok",
-        "version":             "0.3.0",
+        "version":             "0.4.0",
         "predictor_ready":     predictor.initialized,
         "rca_predictor_ready": rca_predictor.initialized,
         "semantic_cache":      cache_stats,
@@ -188,6 +190,31 @@ async def receive_sensor_reading(reading: IncomingSensorReading) -> dict:
         return await loop.run_in_executor(None, predictor.update_with_reading, reading.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/work-orders")
+async def list_work_orders() -> list[dict]:
+    """Devuelve todas las órdenes de trabajo (abiertas y completadas)."""
+    return cmms.list_orders()
+
+
+@app.get("/work-orders/{wo_id}")
+async def get_work_order(wo_id: str) -> dict:
+    """Devuelve una orden de trabajo por su ID."""
+    order = cmms.get_order(wo_id)
+    if not order:
+        raise HTTPException(status_code=404, detail=f"Orden {wo_id} no encontrada")
+    return order
+
+
+@app.patch("/work-orders/{wo_id}/complete")
+async def complete_work_order(wo_id: str) -> dict:
+    """Marca una orden de trabajo como completada."""
+    order = cmms.get_order(wo_id)
+    if not order:
+        raise HTTPException(status_code=404, detail=f"Orden {wo_id} no encontrada")
+    order["status"] = "completed"
+    return order
 
 
 def run() -> None:

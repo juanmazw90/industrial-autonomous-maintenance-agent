@@ -14,6 +14,17 @@ interface MachinePrediction {
   as_of_timestamp: string;
 }
 
+interface WorkOrder {
+  work_order_id: string;
+  machine_id: string;
+  failure_mode: string;
+  priority: "urgent" | "high" | "normal";
+  estimated_cost: number;
+  sop_reference: string;
+  status: "open" | "completed";
+  created_at: string;
+}
+
 // ── Config ─────────────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 3000;
@@ -53,12 +64,31 @@ const ALERT_CONFIG = {
   },
 };
 
+const PRIORITY_CONFIG = {
+  urgent: { label: "URGENTE", badge: "bg-red-950/60 text-red-400 border-red-700/60" },
+  high:   { label: "ALTA",    badge: "bg-yellow-950/60 text-yellow-400 border-yellow-700/60" },
+  normal: { label: "NORMAL",  badge: "bg-green-950/60 text-green-400 border-green-800/60" },
+};
+
+const WO_POLL_INTERVAL_MS = 5000;
+
 // ── API ────────────────────────────────────────────────────────────────────
 
 async function fetchPredictions(): Promise<MachinePrediction[]> {
   const res = await fetch("/api/predict/failure/all", { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
+}
+
+async function fetchWorkOrders(): Promise<WorkOrder[]> {
+  const res = await fetch("/api/work-orders", { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function completeWorkOrder(woId: string): Promise<void> {
+  const res = await fetch(`/api/work-orders/${woId}/complete`, { method: "PATCH" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 // ── Components ─────────────────────────────────────────────────────────────
@@ -163,12 +193,68 @@ function StatusBar({
   );
 }
 
+function WorkOrderCard({
+  order,
+  onComplete,
+}: {
+  order: WorkOrder;
+  onComplete: (id: string) => void;
+}) {
+  const cfg = PRIORITY_CONFIG[order.priority] ?? PRIORITY_CONFIG.normal;
+  const ts = new Date(order.created_at).toLocaleString("es-ES", {
+    month:  "short",
+    day:    "numeric",
+    hour:   "2-digit",
+    minute: "2-digit",
+  });
+  const cost = order.estimated_cost.toLocaleString("es-ES", {
+    style:              "currency",
+    currency:           "USD",
+    maximumFractionDigits: 0,
+  });
+
+  return (
+    <div className="border border-gray-700/60 rounded-xl p-4 flex flex-col gap-3 bg-gray-900/40">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-bold text-gray-100 leading-none">
+            {order.work_order_id}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">{order.machine_id}</p>
+        </div>
+        <span className={`text-xs font-semibold px-2 py-1 rounded-full border ${cfg.badge}`}>
+          {cfg.label}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <span className="text-gray-500">Modo de fallo</span>
+        <span className="text-gray-300 font-medium">{order.failure_mode.replace(/_/g, " ")}</span>
+        <span className="text-gray-500">SOP</span>
+        <span className="text-gray-300 font-mono">{order.sop_reference}</span>
+        <span className="text-gray-500">Costo estimado</span>
+        <span className="text-yellow-400 font-semibold tabular-nums">{cost}</span>
+        <span className="text-gray-500">Creada</span>
+        <span className="text-gray-400">{ts}</span>
+      </div>
+
+      <button
+        onClick={() => onComplete(order.work_order_id)}
+        className="w-full text-xs font-medium py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-100 hover:border-gray-500 hover:bg-gray-800 transition-colors"
+      >
+        Marcar completada
+      </button>
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const [predictions, setPredictions] = useState<MachinePrediction[]>([]);
   const [lastUpdate, setLastUpdate]   = useState<Date | null>(null);
   const [error, setError]             = useState<string | null>(null);
+  const [workOrders, setWorkOrders]   = useState<WorkOrder[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,7 +277,33 @@ export default function DashboardPage() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollWO() {
+      try {
+        const data = await fetchWorkOrders();
+        if (!cancelled) setWorkOrders(data);
+      } catch { /* fallo silencioso: el panel de WO es secundario */ }
+    }
+
+    pollWO();
+    const id = setInterval(pollWO, WO_POLL_INTERVAL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  async function handleComplete(woId: string) {
+    try {
+      await completeWorkOrder(woId);
+      setWorkOrders((prev) =>
+        prev.map((o) => o.work_order_id === woId ? { ...o, status: "completed" } : o)
+      );
+    } catch { /* fallo silencioso */ }
+  }
+
   const criticalMachines = predictions.filter((p) => p.alert_level === "red");
+  const openOrders = workOrders.filter((o) => o.status === "open");
+  const totalRisk  = openOrders.reduce((sum, o) => sum + o.estimated_cost, 0);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -239,6 +351,45 @@ export default function DashboardPage() {
               <MachineCard key={m.machine_id} machine={m} />
             ))}
           </div>
+        )}
+
+        {/* Sección: Órdenes de Trabajo */}
+        {(predictions.length > 0 || workOrders.length > 0) && (
+          <section className="mt-10">
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+                Órdenes de Trabajo Activas
+              </h2>
+              {openOrders.length > 0 && (
+                <span className="text-xs text-gray-500">
+                  Impacto económico en riesgo:{" "}
+                  <span className="text-yellow-400 font-bold tabular-nums">
+                    {totalRisk.toLocaleString("es-ES", {
+                      style: "currency",
+                      currency: "USD",
+                      maximumFractionDigits: 0,
+                    })}
+                  </span>
+                </span>
+              )}
+            </div>
+
+            {openOrders.length === 0 ? (
+              <div className="rounded-xl border border-gray-800 bg-gray-900/20 py-10 text-center text-sm text-gray-600">
+                Sin alertas activas — todas las máquinas operando dentro de parámetros normales
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {openOrders.map((order) => (
+                  <WorkOrderCard
+                    key={order.work_order_id}
+                    order={order}
+                    onComplete={handleComplete}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
         )}
 
         {/* Leyenda */}
