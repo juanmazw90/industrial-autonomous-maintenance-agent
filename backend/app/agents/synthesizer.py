@@ -86,6 +86,30 @@ def _build_sensor_context(analysis: dict) -> str:
     return "\n".join(lines)
 
 
+_URGENCY_EMOJI: dict[str, str] = {"critical": "🔴", "warning": "🟡", "normal": "🟢"}
+_URGENCY_LABEL: dict[str, str] = {
+    "critical": "CRÍTICO — intervención urgente",
+    "warning":  "MODERADO — planificar mantenimiento",
+    "normal":   "NORMAL — dentro de parámetros",
+}
+
+
+def _build_rul_context(rul: dict) -> str:
+    if "error" in rul:
+        return ""
+    hours   = rul.get("hours_remaining", 500)
+    frac    = rul.get("degradation_fraction", 0.0)
+    urgency = rul.get("urgency_level", "normal")
+    emoji   = _URGENCY_EMOJI.get(urgency, "⚪")
+    label   = _URGENCY_LABEL.get(urgency, urgency)
+    lines = [
+        f"\n⏱️  Vida útil restante (RUL): {emoji} {label}",
+        f"   Horas restantes estimadas: {hours:.0f}h",
+        f"   Degradación acumulada: {frac:.0%}",
+    ]
+    return "\n".join(lines)
+
+
 _PRIORITY_ES: dict[str, str] = {
     "urgent": "URGENTE",
     "high":   "ALTA",
@@ -127,20 +151,27 @@ def _build_sources(docs: list[dict]) -> list[dict]:
 async def synthesizer_node(state: AMIAState) -> dict:
     """
     Lee:    state["query"], state["retrieved_docs"], state["sensor_analysis"],
-            state["economic_impact"], state["work_order"], state["conversation_history"]
+            state["rul_prediction"], state["economic_impact"], state["work_order"],
+            state["conversation_history"]
     Escribe: state["final_response"], state["sources"]
     """
     query           = state["query"]
     docs            = state.get("retrieved_docs", [])
     sensor_analysis = state.get("sensor_analysis")
+    rul_prediction  = state.get("rul_prediction")
     economic_impact = state.get("economic_impact")
     work_order      = state.get("work_order")
     history         = state.get("conversation_history", [])
 
     if sensor_analysis:
         context = _build_sensor_context(sensor_analysis)
+        if rul_prediction and "error" not in rul_prediction:
+            context += _build_rul_context(rul_prediction)
         if economic_impact:
             context += _build_economic_context(economic_impact, work_order)
+        user_message = f"Datos del sistema de predicción:\n{context}\n\nPregunta del usuario: {query}"
+    elif rul_prediction and "error" not in rul_prediction:
+        context = _build_rul_context(rul_prediction).lstrip("\n")
         user_message = f"Datos del sistema de predicción:\n{context}\n\nPregunta del usuario: {query}"
     else:
         context = _build_docs_context(docs)

@@ -34,11 +34,13 @@ _ROUTING_TOOL = {
         "properties": {
             "next_agent": {
                 "type": "string",
-                "enum": ["doc_expert", "sensor_analyst", "synthesizer"],
+                "enum": ["doc_expert", "sensor_analyst", "rul_analyst", "synthesizer"],
                 "description": (
                     "doc_expert: la consulta requiere buscar en manuales, SOPs o especificaciones técnicas. "
                     "sensor_analyst: la consulta pregunta por el estado, riesgo de fallo o salud de una "
                     "máquina específica (contiene un ID como COMP-001, MOTOR-001, PUMP-002, etc.). "
+                    "rul_analyst: la consulta pregunta cuánto tiempo le queda a una máquina, su vida útil "
+                    "restante o nivel de degradación acumulada. "
                     "synthesizer: saludos, preguntas generales o cuando el historial ya tiene la respuesta."
                 ),
             },
@@ -60,6 +62,8 @@ Agentes disponibles:
 - sensor_analyst: para consultas sobre el estado actual, riesgo de fallo, salud o predicción
   de una máquina específica. Se activa cuando la consulta contiene un ID de máquina
   (COMP-001, MOTOR-001, MOTOR-002, PUMP-001, PUMP-002).
+- rul_analyst: para consultas sobre cuánto tiempo le queda a una máquina antes de fallar,
+  su vida útil restante en horas o su nivel de degradación acumulada.
 - synthesizer: para saludos, preguntas generales que no requieren documentación ni datos
   de sensores, o cuando el historial ya contiene suficiente información.
 

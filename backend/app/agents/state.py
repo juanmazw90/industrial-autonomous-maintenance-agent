@@ -9,8 +9,9 @@ class AMIAState(TypedDict):
     # Llenado por DocExpert (V1)
     retrieved_docs: list[dict]         # chunks con text, metadata, scores
 
-    # Llenado por SensorAnalyst (V2) y EconomicAnalyst (V3)
+    # Llenado por SensorAnalyst (V2), RULAnalyst (V4) y EconomicAnalyst (V3)
     sensor_analysis: dict | None
+    rul_prediction:  dict | None
     economic_impact: dict | None
     work_order: dict | None
 

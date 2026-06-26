@@ -25,6 +25,14 @@ interface WorkOrder {
   created_at: string;
 }
 
+interface RULPrediction {
+  machine_id: string;
+  hours_remaining: number;
+  degradation_fraction: number;
+  urgency_level: "critical" | "warning" | "normal";
+  as_of_timestamp: string;
+}
+
 // ── Config ─────────────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 3000;
@@ -70,7 +78,33 @@ const PRIORITY_CONFIG = {
   normal: { label: "NORMAL",  badge: "bg-green-950/60 text-green-400 border-green-800/60" },
 };
 
-const WO_POLL_INTERVAL_MS = 5000;
+const WO_POLL_INTERVAL_MS  = 5000;
+const RUL_POLL_INTERVAL_MS = 5000;
+const MAX_RUL_HOURS        = 500;
+
+const URGENCY_CONFIG = {
+  critical: {
+    label: "CRÍTICO",
+    text:  "text-red-400",
+    bar:   "bg-red-500",
+    card:  "bg-red-950/40 border-red-700/60",
+    pulse: "animate-pulse",
+  },
+  warning: {
+    label: "MODERADO",
+    text:  "text-yellow-400",
+    bar:   "bg-yellow-500",
+    card:  "bg-yellow-950/40 border-yellow-700/60",
+    pulse: "animate-pulse",
+  },
+  normal: {
+    label: "NORMAL",
+    text:  "text-green-400",
+    bar:   "bg-green-500",
+    card:  "bg-gray-900/40 border-gray-700/60",
+    pulse: "",
+  },
+};
 
 // ── API ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +123,12 @@ async function fetchWorkOrders(): Promise<WorkOrder[]> {
 async function completeWorkOrder(woId: string): Promise<void> {
   const res = await fetch(`/api/work-orders/${woId}/complete`, { method: "PATCH" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+async function fetchRULPredictions(): Promise<RULPrediction[]> {
+  const res = await fetch("/api/predict/rul/all", { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 // ── Components ─────────────────────────────────────────────────────────────
@@ -248,13 +288,62 @@ function WorkOrderCard({
   );
 }
 
+function RULBar({ fraction }: { fraction: number }) {
+  const pct   = Math.round(Math.min(fraction, 1) * 100);
+  const color = pct >= 80 ? "bg-red-500" : pct >= 40 ? "bg-yellow-500" : "bg-green-500";
+  return (
+    <div className="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+      <div
+        className={`h-1.5 rounded-full transition-all duration-700 ${color}`}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
+
+function RULCard({ rul }: { rul: RULPrediction }) {
+  const cfg       = URGENCY_CONFIG[rul.urgency_level] ?? URGENCY_CONFIG.normal;
+  const mtype     = MACHINE_TYPE[rul.machine_id] ?? "Equipo Industrial";
+  const degradPct = Math.round(rul.degradation_fraction * 100);
+
+  return (
+    <div className={`border rounded-xl p-5 flex flex-col gap-3 transition-colors duration-500 ${cfg.card}`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-lg font-bold text-gray-100 leading-none">{rul.machine_id}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{mtype}</p>
+        </div>
+        <span className={`flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full border ${cfg.text} border-current/30 ${cfg.pulse}`}>
+          {cfg.label}
+        </span>
+      </div>
+
+      <div>
+        <div className="flex items-baseline justify-between">
+          <span className="text-xs text-gray-500">Vida útil restante</span>
+          <span className={`text-2xl font-bold tabular-nums ${cfg.text}`}>
+            {rul.hours_remaining.toFixed(0)}h
+          </span>
+        </div>
+        <RULBar fraction={rul.degradation_fraction} />
+      </div>
+
+      <div className="flex justify-between text-xs text-gray-600">
+        <span>Degradación acumulada: {degradPct}%</span>
+        <span>de {MAX_RUL_HOURS}h máx.</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [predictions, setPredictions] = useState<MachinePrediction[]>([]);
-  const [lastUpdate, setLastUpdate]   = useState<Date | null>(null);
-  const [error, setError]             = useState<string | null>(null);
-  const [workOrders, setWorkOrders]   = useState<WorkOrder[]>([]);
+  const [predictions, setPredictions]   = useState<MachinePrediction[]>([]);
+  const [lastUpdate, setLastUpdate]     = useState<Date | null>(null);
+  const [error, setError]               = useState<string | null>(null);
+  const [workOrders, setWorkOrders]     = useState<WorkOrder[]>([]);
+  const [rulPredictions, setRulPredictions] = useState<RULPrediction[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -289,6 +378,21 @@ export default function DashboardPage() {
 
     pollWO();
     const id = setInterval(pollWO, WO_POLL_INTERVAL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollRUL() {
+      try {
+        const data = await fetchRULPredictions();
+        if (!cancelled) setRulPredictions(data);
+      } catch { /* fallo silencioso: RUL puede no estar entrenado */ }
+    }
+
+    pollRUL();
+    const id = setInterval(pollRUL, RUL_POLL_INTERVAL_MS);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
@@ -389,6 +493,27 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+          </section>
+        )}
+
+        {/* Sección: Vida Útil Restante */}
+        {rulPredictions.length > 0 && (
+          <section className="mt-10">
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+                Vida Útil Restante (RUL)
+              </h2>
+              <span className="text-xs text-gray-500">
+                {rulPredictions.filter((r) => r.urgency_level !== "normal").length > 0
+                  ? `${rulPredictions.filter((r) => r.urgency_level !== "normal").length} máquina(s) con degradación activa`
+                  : "Todas las máquinas dentro de parámetros"}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rulPredictions.map((r) => (
+                <RULCard key={r.machine_id} rul={r} />
+              ))}
+            </div>
           </section>
         )}
 

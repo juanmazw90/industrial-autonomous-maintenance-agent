@@ -65,18 +65,20 @@ services:
   #     --default-artifact-root /mlartifacts
 
   # ── Added in V4 ──────────────────────────────────────────────────────────
-  # langfuse:
-  #   image: langfuse/langfuse:latest
-  #   container_name: amia-langfuse
-  #   ports:
-  #     - "3001:3000"
-  #   environment:
-  #     DATABASE_URL: postgresql://amia:amia_dev@postgres:5432/amia
-  #     NEXTAUTH_SECRET: dev_secret_changeme
-  #     SALT: dev_salt_changeme
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: amia-langfuse
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://amia:amia_dev@postgres:5432/amia
+      NEXTAUTH_SECRET: dev_secret_changeme
+      NEXTAUTH_URL: http://localhost:3001
+      SALT: dev_salt_changeme
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

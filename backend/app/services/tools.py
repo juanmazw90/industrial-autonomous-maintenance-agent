@@ -15,6 +15,7 @@ from .retrieval import Retriever, RetrievedChunk
 if TYPE_CHECKING:
     from .predictor import FailurePredictor
     from .rca_predictor import RCAPredictor
+    from .rul_predictor import RULPredictor
 
 
 def build_search_tool(retriever: Retriever):
@@ -75,6 +76,33 @@ def build_predict_failure_tool(predictor: FailurePredictor):
             return {"error": str(e)}
 
     return predict_failure_risk
+
+
+def build_predict_rul_tool(predictor: RULPredictor):
+    """
+    Factoría: devuelve la tool de predicción de RUL con el predictor inyectado.
+    """
+    def predict_remaining_useful_life(machine_id: str) -> dict:
+        """
+        Predice las horas de vida útil restante de una máquina.
+
+        Args:
+            machine_id: ID de la máquina (ej. 'COMP-001', 'PUMP-002')
+
+        Returns:
+            Dict con hours_remaining, degradation_fraction, urgency_level y timestamp.
+        """
+        if not predictor.initialized:
+            return {
+                "error": "RULPredictor no disponible.",
+                "hint": "Ejecuta train_rul.py para entrenar el modelo.",
+            }
+        try:
+            return predictor.predict(machine_id)
+        except ValueError as e:
+            return {"error": str(e)}
+
+    return predict_remaining_useful_life
 
 
 def build_predict_rca_tool(predictor: RCAPredictor):
