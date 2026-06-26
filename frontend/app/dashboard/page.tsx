@@ -33,6 +33,18 @@ interface RULPrediction {
   as_of_timestamp: string;
 }
 
+interface KPIData {
+  machines_monitored:    number;
+  machines_green:        number;
+  machines_warning:      number;
+  machines_critical:     number;
+  work_orders_open:      number;
+  work_orders_total:     number;
+  risk_exposure_usd:     number;
+  avg_rul_hours:         number | null;
+  fleet_degradation_pct: number | null;
+}
+
 // ── Config ─────────────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 3000;
@@ -78,6 +90,7 @@ const PRIORITY_CONFIG = {
   normal: { label: "NORMAL",  badge: "bg-green-950/60 text-green-400 border-green-800/60" },
 };
 
+const KPI_POLL_INTERVAL_MS = 10000;
 const WO_POLL_INTERVAL_MS  = 5000;
 const RUL_POLL_INTERVAL_MS = 5000;
 const MAX_RUL_HOURS        = 500;
@@ -127,6 +140,12 @@ async function completeWorkOrder(woId: string): Promise<void> {
 
 async function fetchRULPredictions(): Promise<RULPrediction[]> {
   const res = await fetch("/api/predict/rul/all", { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function fetchKPIs(): Promise<KPIData> {
+  const res = await fetch("/api/metrics/kpis", { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -288,6 +307,63 @@ function WorkOrderCard({
   );
 }
 
+function KPITile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+  return (
+    <div className="flex flex-col gap-1 bg-gray-900/60 border border-gray-800 rounded-xl px-5 py-4 min-w-0">
+      <p className="text-xs text-gray-500 uppercase tracking-wider truncate">{label}</p>
+      <p className={`text-2xl font-bold tabular-nums truncate ${accent ?? "text-gray-100"}`}>{value}</p>
+      {sub && <p className="text-xs text-gray-600 truncate">{sub}</p>}
+    </div>
+  );
+}
+
+function ExecutiveSummary({ kpis }: { kpis: KPIData }) {
+  const riskUSD = kpis.risk_exposure_usd.toLocaleString("es-ES", {
+    style: "currency", currency: "USD", maximumFractionDigits: 0,
+  });
+  const accentCritical = kpis.machines_critical > 0 ? "text-red-400" : "text-green-400";
+  const accentWarn     = kpis.machines_warning  > 0 ? "text-yellow-400" : "text-green-400";
+  const accentRisk     = kpis.risk_exposure_usd > 0 ? "text-orange-400" : "text-green-400";
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+      <KPITile
+        label="Máquinas"
+        value={String(kpis.machines_monitored)}
+        sub={`${kpis.machines_green} normales`}
+      />
+      <KPITile
+        label="En alerta"
+        value={String(kpis.machines_warning)}
+        sub="nivel moderado"
+        accent={accentWarn}
+      />
+      <KPITile
+        label="Críticas"
+        value={String(kpis.machines_critical)}
+        sub="intervención urgente"
+        accent={accentCritical}
+      />
+      <KPITile
+        label="OT abiertas"
+        value={String(kpis.work_orders_open)}
+        sub={`de ${kpis.work_orders_total} totales`}
+      />
+      <KPITile
+        label="Riesgo econ."
+        value={riskUSD}
+        sub="en OT abiertas"
+        accent={accentRisk}
+      />
+      <KPITile
+        label="RUL promedio"
+        value={kpis.avg_rul_hours !== null ? `${kpis.avg_rul_hours.toFixed(0)}h` : "—"}
+        sub={kpis.fleet_degradation_pct !== null ? `${kpis.fleet_degradation_pct}% degradación flota` : ""}
+      />
+    </div>
+  );
+}
+
 function RULBar({ fraction }: { fraction: number }) {
   const pct   = Math.round(Math.min(fraction, 1) * 100);
   const color = pct >= 80 ? "bg-red-500" : pct >= 40 ? "bg-yellow-500" : "bg-green-500";
@@ -339,11 +415,12 @@ function RULCard({ rul }: { rul: RULPrediction }) {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [predictions, setPredictions]   = useState<MachinePrediction[]>([]);
-  const [lastUpdate, setLastUpdate]     = useState<Date | null>(null);
-  const [error, setError]               = useState<string | null>(null);
-  const [workOrders, setWorkOrders]     = useState<WorkOrder[]>([]);
+  const [predictions, setPredictions]       = useState<MachinePrediction[]>([]);
+  const [lastUpdate, setLastUpdate]         = useState<Date | null>(null);
+  const [error, setError]                   = useState<string | null>(null);
+  const [workOrders, setWorkOrders]         = useState<WorkOrder[]>([]);
   const [rulPredictions, setRulPredictions] = useState<RULPrediction[]>([]);
+  const [kpis, setKpis]                     = useState<KPIData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -396,6 +473,21 @@ export default function DashboardPage() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollKPIs() {
+      try {
+        const data = await fetchKPIs();
+        if (!cancelled) setKpis(data);
+      } catch { /* fallo silencioso */ }
+    }
+
+    pollKPIs();
+    const id = setInterval(pollKPIs, KPI_POLL_INTERVAL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
   async function handleComplete(woId: string) {
     try {
       await completeWorkOrder(woId);
@@ -421,6 +513,9 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
+
+        {/* Executive summary KPIs */}
+        {kpis && <ExecutiveSummary kpis={kpis} />}
 
         {/* Alertas críticas */}
         {criticalMachines.length > 0 && (

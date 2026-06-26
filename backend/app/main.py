@@ -11,6 +11,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .graph import get_graph
+from .middleware.rate_limiter import RateLimitMiddleware
 from .models import FailurePredictionResponse, IncomingSensorReading, InputQuery
 from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
@@ -84,7 +85,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AMIA Backend",
     description="Autonomous Maintenance Intelligence Agent API",
-    version="0.5.0",
+    version="0.6.0",
     lifespan=lifespan,
 )
 
@@ -95,13 +96,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+_RATE_LIMIT      = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
+_RATE_WINDOW     = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+_REDIS_RATE_URL  = os.getenv("REDIS_URL", "redis://localhost:6379")
+app.add_middleware(RateLimitMiddleware, redis_url=_REDIS_RATE_URL, limit=_RATE_LIMIT, window=_RATE_WINDOW)
+
 
 @app.get("/health")
 async def health() -> dict:
     cache_stats = await sem_cache.stats()
     return {
         "status":              "ok",
-        "version":             "0.5.0",
+        "version":             "0.6.0",
         "predictor_ready":     predictor.initialized,
         "rca_predictor_ready": rca_predictor.initialized,
         "rul_predictor_ready": rul_predictor.initialized,
@@ -271,6 +277,77 @@ async def predict_rul_all() -> list[dict]:
     if not rul_predictor.initialized:
         raise HTTPException(status_code=503, detail="El predictor RUL no está disponible.")
     return rul_predictor.predict_all()
+
+
+@app.get("/evaluate")
+async def evaluate_models() -> dict:
+    """
+    Ejecuta la suite de evaluación formal sobre el test split (20% temporal).
+    Devuelve AUC/F1/Precision/Recall para failure prediction, Accuracy/Top-3/F1-macro
+    para RCA, y RMSE/MAE/R² para RUL.
+    """
+    import sys
+    sys.path.insert(0, str(REPO_ROOT / "ml"))
+    try:
+        from amia_ml.evaluate import run_all
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(None, run_all)
+        return {"status": "ok", "results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en evaluación: {e}")
+
+
+@app.get("/metrics/drift")
+async def get_drift_report() -> dict:
+    """
+    Ejecuta Evidently AI para detectar data drift entre el 60% de referencia
+    y el 20% más reciente del dataset. Genera data/drift_report.html.
+    """
+    import sys
+    sys.path.insert(0, str(REPO_ROOT / "ml"))
+    try:
+        from amia_ml.monitor_drift import run_drift_report
+        loop = asyncio.get_event_loop()
+        summary = await loop.run_in_executor(None, run_drift_report)
+        return {"status": "ok", **summary}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en drift monitoring: {e}")
+
+
+@app.get("/metrics/kpis")
+async def get_kpis() -> dict:
+    """
+    KPIs ejecutivos del sistema: estado de la flota, riesgo económico y degradación media.
+    Usado por el executive dashboard del frontend.
+    """
+    failure_preds: list[dict] = predictor.predict_all() if predictor.initialized else []
+    rul_preds:     list[dict] = rul_predictor.predict_all() if rul_predictor.initialized else []
+    all_orders     = cmms.list_orders()
+    open_orders    = [o for o in all_orders if o.get("status") == "open"]
+
+    alert_counts = {"green": 0, "yellow": 0, "red": 0}
+    for p in failure_preds:
+        level = p.get("alert_level", "green")
+        alert_counts[level] = alert_counts.get(level, 0) + 1
+
+    total_risk_usd = sum(o.get("estimated_cost", 0.0) for o in open_orders)
+
+    avg_rul   = round(sum(r["hours_remaining"] for r in rul_preds) / len(rul_preds), 1) if rul_preds else None
+    avg_degr  = round(sum(r["degradation_fraction"] for r in rul_preds) / len(rul_preds) * 100, 1) if rul_preds else None
+
+    return {
+        "version":                 "0.6.0",
+        "machines_monitored":      len(failure_preds),
+        "machines_green":          alert_counts["green"],
+        "machines_warning":        alert_counts["yellow"],
+        "machines_critical":       alert_counts["red"],
+        "work_orders_open":        len(open_orders),
+        "work_orders_total":       len(all_orders),
+        "risk_exposure_usd":       round(total_risk_usd, 2),
+        "avg_rul_hours":           avg_rul,
+        "fleet_degradation_pct":   avg_degr,
+        "rate_limit":              {"requests": _RATE_LIMIT, "window_seconds": _RATE_WINDOW},
+    }
 
 
 def run() -> None:
