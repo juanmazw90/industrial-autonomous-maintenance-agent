@@ -19,9 +19,9 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from evidently import ColumnMapping
-from evidently.metric_preset import DataDriftPreset, DataQualityPreset
-from evidently.report import Report
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
+from evidently.legacy.metric_preset import DataDriftPreset, DataQualityPreset
+from evidently.legacy.report import Report
 
 REPO_ROOT   = Path(__file__).resolve().parents[2]
 DATA_PATH   = REPO_ROOT / "data/synthetic/sensor_readings.parquet"
@@ -35,7 +35,7 @@ SENSOR_COLS = [
     "speed_rpm",
 ]
 
-TARGET_COL  = "will_fail_24h"
+TARGET_COL  = "is_failure"
 MACHINE_COL = "machine_id"
 
 

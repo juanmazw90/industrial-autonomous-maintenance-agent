@@ -36,6 +36,24 @@ RESULTS_DIR = REPO_ROOT / "data/evaluation"
 
 mlflow.set_tracking_uri(MLFLOW_URI)
 
+# Importar las funciones reales de feature engineering de cada script de entrenamiento.
+# Cada script tiene su propia `build_features()` — se importan con alias para evitar colisión.
+import importlib.util as _ilu
+import sys as _sys
+
+def _import_build_features(script_name: str):
+    path = Path(__file__).parent / script_name
+    spec = _ilu.spec_from_file_location(script_name.replace(".py",""), path)
+    mod  = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.build_features
+
+
+_MACHINE_TYPE_MAP = {"compressor": 0, "induction_motor": 1, "centrifugal_pump": 2}
+_SPLIT_DATE       = pd.Timestamp("2024-11-01")
+_CLASS_MAP        = {c: i for i, c in enumerate(sorted(["bearing_wear", "cavitation", "electrical_failure", "misalignment", "overheating"]))}
+_CLASS_NAMES      = [k for k, _ in sorted(_CLASS_MAP.items(), key=lambda x: x[1])]
+
 
 def _load_data() -> pd.DataFrame:
     df = pd.read_parquet(DATA_PATH)
@@ -43,128 +61,136 @@ def _load_data() -> pd.DataFrame:
     return df.sort_values("timestamp").reset_index(drop=True)
 
 
-def _feature_engineering(df: pd.DataFrame, feature_cols: list[str]) -> pd.DataFrame:
-    """Replica el feature engineering de los scripts de entrenamiento."""
+def _add_type_enc(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    for col in ["vibration_rms", "vibration_peak", "temperature_bearing", "temperature_motor",
-                "pressure_discharge", "current_phase_a", "current_phase_b", "current_phase_c", "speed_rpm"]:
-        if col not in df.columns:
-            continue
-        df[f"{col}_lag1"]    = df.groupby("machine_id")[col].shift(1)
-        df[f"{col}_roll3"]   = df.groupby("machine_id")[col].transform(lambda x: x.rolling(3, min_periods=1).mean())
-        df[f"{col}_roll6"]   = df.groupby("machine_id")[col].transform(lambda x: x.rolling(6, min_periods=1).mean())
-        df[f"{col}_std3"]    = df.groupby("machine_id")[col].transform(lambda x: x.rolling(3, min_periods=1).std().fillna(0))
-        df[f"{col}_delta"]   = df.groupby("machine_id")[col].diff().fillna(0)
-
-    if "machine_type" in df.columns:
-        df = pd.get_dummies(df, columns=["machine_type"], prefix="mtype")
-
-    return df[feature_cols].fillna(0) if feature_cols else df
+    df["machine_type_enc"] = df["machine_type"].map(_MACHINE_TYPE_MAP)
+    return df
 
 
-def _test_split(df: pd.DataFrame) -> pd.DataFrame:
-    """Devuelve el 20% final del dataset (split temporal, igual que en entrenamiento)."""
-    cutoff = int(len(df) * 0.8)
-    return df.iloc[cutoff:].copy()
+def _test_mask(df: pd.DataFrame) -> pd.Series:
+    """Máscara temporal del test split (igual que en entrenamiento: timestamp >= 2024-11-01)."""
+    return df["timestamp"] >= _SPLIT_DATE
+
+
+def _download_inference_dir(model_name: str, tmp_prefix: str) -> tuple:
+    """Descarga el directorio 'inference/' del run registrado y devuelve (model, artifact_dir)."""
+    client   = mlflow.MlflowClient()
+    model    = mlflow.xgboost.load_model(f"models:/{model_name}/latest")
+    versions = client.search_model_versions(f"name='{model_name}'")
+    run_id   = versions[0].run_id
+    art_dir  = client.download_artifacts(run_id, "inference", f"/tmp/{tmp_prefix}")
+    return model, art_dir
 
 
 # ── Failure Prediction ────────────────────────────────────────────────────────
 
 def evaluate_failure() -> dict:
-    client = mlflow.MlflowClient()
-    model  = mlflow.sklearn.load_model("models:/amia-failure-prediction/latest")
+    model, art_dir = _download_inference_dir("amia-failure-prediction", "fp_eval")
 
-    # Cargar artefactos
-    run_id = client.get_latest_versions("amia-failure-prediction")[0].run_id
-    art_path = client.download_artifacts(run_id, "feature_cols.json", "/tmp")
-    with open(art_path) as f:
+    with open(f"{art_dir}/feature_cols.json") as f:
         feature_cols = json.load(f)
-    art_path2 = client.download_artifacts(run_id, "thresholds.json", "/tmp")
-    with open(art_path2) as f:
-        thresholds = json.load(f)
-    threshold = thresholds.get("optimal", 0.5)
+    with open(f"{art_dir}/optimal_threshold.json") as f:
+        threshold = json.load(f).get("optimal", 0.5)
 
-    df   = _load_data()
-    test = _test_split(df)
-    X    = _feature_engineering(test, feature_cols)
-    y    = test["will_fail_24h"].fillna(0).astype(int)
+    build_fp_features = _import_build_features("train_failure_prediction.py")
+    df_raw = _load_data()
+    df_feat, _ = build_fp_features(df_raw)
+    df_feat = _add_type_enc(df_feat)
+    # Crear target igual que en train(): rolling 24h forward sobre is_failure
+    df_feat["label"] = (
+        df_feat.groupby("machine_id")["is_failure"]
+        .transform(lambda x: x.astype(int).shift(-24).rolling(24, min_periods=1).max())
+        .fillna(0).astype(int)
+    )
+    test = df_feat.loc[_test_mask(df_feat)].copy()
 
+    X = test[feature_cols].fillna(0)
+    y = test["label"]
+
+    # XGBClassifier cargado con mlflow.xgboost tiene predict_proba
     proba = model.predict_proba(X)[:, 1]
     preds = (proba >= threshold).astype(int)
 
     return {
-        "model":     "failure_prediction",
-        "n_samples": int(len(y)),
+        "model":      "failure_prediction",
+        "n_samples":  int(len(y)),
         "n_failures": int(y.sum()),
-        "threshold": round(threshold, 3),
-        "auc_roc":   round(float(roc_auc_score(y, proba)), 4),
-        "f1":        round(float(f1_score(y, preds, zero_division=0)), 4),
-        "precision": round(float(precision_score(y, preds, zero_division=0)), 4),
-        "recall":    round(float(recall_score(y, preds, zero_division=0)), 4),
+        "threshold":  round(threshold, 3),
+        "auc_roc":    round(float(roc_auc_score(y, proba)), 4),
+        "f1":         round(float(f1_score(y, preds, zero_division=0)), 4),
+        "precision":  round(float(precision_score(y, preds, zero_division=0)), 4),
+        "recall":     round(float(recall_score(y, preds, zero_division=0)), 4),
     }
 
 
 # ── RCA ───────────────────────────────────────────────────────────────────────
 
 def evaluate_rca() -> dict:
-    client = mlflow.MlflowClient()
-    model  = mlflow.sklearn.load_model("models:/amia-rca-model/latest")
+    model, art_dir = _download_inference_dir("amia-rca-model", "rca_eval")
 
-    run_id   = client.get_latest_versions("amia-rca-model")[0].run_id
-    art_path = client.download_artifacts(run_id, "feature_cols.json", "/tmp/rca_")
-    with open(art_path) as f:
+    with open(f"{art_dir}/rca_feature_cols.json") as f:
         feature_cols = json.load(f)
+    with open(f"{art_dir}/rca_class_map.json") as f:
+        class_map = json.load(f)    # {class_name: int_index}
+    class_names  = [k for k, _ in sorted(class_map.items(), key=lambda x: x[1])]
 
-    df   = _load_data()
-    test = _test_split(df)
-    test = test[test["failure_mode"].notna()].copy()
+    build_rca_features = _import_build_features("train_rca.py")
+    df_raw  = _load_data()
+    df_feat = build_rca_features(df_raw)
+    df_feat = _add_type_enc(df_feat)
+    # Igual que train_rca.py: mapear a int y filtrar solo las 5 clases reales
+    df_feat["rca_label"] = df_feat["failure_mode"].map(class_map)
+    df_rca  = df_feat[df_feat["rca_label"].notna()].copy()
+    df_rca["rca_label"] = df_rca["rca_label"].astype(int)
+    test    = df_rca.loc[_test_mask(df_rca)].copy()
 
     if len(test) == 0:
         return {"model": "rca", "error": "no failure events in test split"}
 
-    X  = _feature_engineering(test, feature_cols)
-    y  = test["failure_mode"].astype(str)
+    X     = test[feature_cols].fillna(0)
+    y_int = test["rca_label"].values
 
-    preds = model.predict(X)
-    proba = model.predict_proba(X)  # shape (n, n_classes)
+    preds_int = model.predict(X).astype(int)
+    proba     = model.predict_proba(X)
 
-    # Top-3 accuracy
+    # Etiquetas de string para métricas legibles
+    y_str     = [class_names[i] if 0 <= i < len(class_names) else "unknown" for i in y_int]
+    preds_str = [class_names[p] if 0 <= p < len(class_names) else "unknown" for p in preds_int]
+
     top3_correct = 0
-    classes = list(model.classes_)
-    for i, true_label in enumerate(y):
+    for i, true_idx in enumerate(y_int):
         top3_idx = np.argsort(proba[i])[::-1][:3]
-        top3_labels = [classes[j] for j in top3_idx]
-        if true_label in top3_labels:
+        if true_idx in top3_idx:
             top3_correct += 1
 
     return {
-        "model":        "rca",
-        "n_samples":    int(len(y)),
-        "accuracy":     round(float(accuracy_score(y, preds)), 4),
-        "top3_accuracy": round(top3_correct / len(y), 4),
-        "f1_macro":     round(float(f1_score(y, preds, average="macro", zero_division=0)), 4),
+        "model":         "rca",
+        "n_samples":     int(len(y_int)),
+        "accuracy":      round(float(accuracy_score(y_str, preds_str)), 4),
+        "top3_accuracy": round(top3_correct / len(y_int), 4),
+        "f1_macro":      round(float(f1_score(y_str, preds_str, average="macro", zero_division=0)), 4),
+        "classes":       class_names,
     }
 
 
 # ── RUL ──────────────────────────────────────────────────────────────────────
 
 def evaluate_rul() -> dict:
-    client = mlflow.MlflowClient()
-    model  = mlflow.sklearn.load_model("models:/amia-rul-model/latest")
+    model, art_dir = _download_inference_dir("amia-rul-model", "rul_eval")
 
-    run_id   = client.get_latest_versions("amia-rul-model")[0].run_id
-    art_path = client.download_artifacts(run_id, "rul_feature_cols.json", "/tmp/rul_")
-    with open(art_path) as f:
+    with open(f"{art_dir}/rul_feature_cols.json") as f:
         feature_cols = json.load(f)
-    art_path2 = client.download_artifacts(run_id, "rul_baselines.json", "/tmp/rul_")
-    with open(art_path2) as f:
-        baselines = json.load(f)
-    max_rul = baselines.get("max_rul_hours", 500)
+    with open(f"{art_dir}/rul_baselines.json") as f:
+        max_rul = json.load(f).get("max_rul_hours", 500)
 
-    df   = _load_data()
-    test = _test_split(df[df["rul_hours"].notna()].copy())
+    build_rul_features = _import_build_features("train_rul.py")
+    df_raw  = _load_data()
+    df_feat, _ = build_rul_features(df_raw)
+    # Solo filas etiquetadas (rul_hours no nulo), split por fecha
+    labeled = df_feat[df_feat["rul_hours"].notna()].copy()
+    test    = labeled.loc[_test_mask(labeled)].copy()
 
-    X = _feature_engineering(test, feature_cols)
+    X = test[feature_cols].fillna(0)
     y = test["rul_hours"].values
 
     raw   = model.predict(X)
