@@ -176,6 +176,109 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+// ── ML / XAI / RAG / Evaluation / Logs types ─────────────────────────────────
+
+export interface MLModel {
+  name: string;
+  description: string | null;
+  latest_version: string | null;
+  latest_stage: string | null;
+  latest_run_id: string | null;
+  tags: Record<string, string>;
+}
+
+export interface ModelMetrics {
+  model: string;
+  version: string;
+  run_id: string;
+  metrics: Record<string, number>;
+  params: Record<string, string>;
+  tags: Record<string, string>;
+}
+
+export interface DriftSummary {
+  model: string;
+  status: string;
+  message?: string;
+  dataset_drift?: boolean;
+  share_drifted_features?: number;
+  number_of_columns?: number;
+  number_of_drifted_columns?: number;
+  feature_drift?: Record<string, { drift_detected: boolean; p_value: number; stattest: string }>;
+  generated_at?: string;
+}
+
+export interface PredictionExplanation {
+  prediction_id: string;
+  machine_id: string;
+  model_name: string;
+  probability: number | null;
+  prediction: Record<string, unknown>;
+  shap_top_features: Array<{ feature: string; value: number }>;
+  created_at: string;
+  similar_predictions: Array<{
+    id: string;
+    probability: number | null;
+    shap_top_features: Array<{ feature: string; value: number }>;
+    created_at: string;
+  }>;
+}
+
+export interface RagSummary {
+  total_queries: number;
+  avg_latency_ms: number;
+  avg_similarity: number;
+  miss_rate: number;
+  hits: number;
+  misses: number;
+  chunk_count: number | null;
+}
+
+export interface RagQuery {
+  id: string;
+  agent_run_id: string | null;
+  query: string;
+  top_k: number;
+  retrieval_latency_ms: number | null;
+  avg_similarity: number | null;
+  hit: boolean;
+  sources: string[] | null;
+  created_at: string;
+}
+
+export interface Evaluation {
+  id: string;
+  agent_run_id: string;
+  accuracy: number | null;
+  groundedness: number | null;
+  hallucination_flag: boolean;
+  tool_success_rate: number | null;
+  evaluator: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface LogEntry {
+  timestamp?: string;
+  level?: string;
+  event?: string;
+  message?: string;
+  logger?: string;
+  [key: string]: unknown;
+}
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  actor_id: string | null;
+  actor_type: string;
+  diff: Record<string, unknown> | null;
+  correlation_id: string | null;
+  created_at: string;
+}
+
 // ── Operations ────────────────────────────────────────────────────────────────
 export const api = {
   operations: {
@@ -206,5 +309,44 @@ export const api = {
       get<{ overall: string; services: Array<{ name: string; status: string; detail?: string }>; checked_at: string }>(
         "/monitoring/services"
       ),
+  },
+  models: {
+    list: () => get<MLModel[]>("/models"),
+    metrics: (name: string) => get<ModelMetrics>(`/models/${encodeURIComponent(name)}/metrics`),
+    drift: (name: string) => get<DriftSummary>(`/models/${encodeURIComponent(name)}/drift`),
+  },
+  predictions: {
+    explain: (id: string) => get<PredictionExplanation>(`/predictions/${id}/explain`),
+  },
+  rag: {
+    summary: () => get<RagSummary>("/rag/summary"),
+    queries: (params?: { limit?: number; offset?: number; hit?: boolean }) =>
+      get<{ total: number; queries: RagQuery[] }>("/rag/queries", params as Record<string, string | number | boolean>),
+    documents: (params?: { limit?: number; offset?: number; search?: string }) =>
+      get<{ limit: number; offset: number; documents: Array<{ id: string; payload: Record<string, unknown> }> }>(
+        "/rag/documents",
+        params as Record<string, string | number>
+      ),
+  },
+  evaluations: {
+    list: (params?: { agent_run_id?: string; limit?: number; offset?: number }) =>
+      get<{ total: number; evaluations: Evaluation[] }>("/agents/evaluations", params as Record<string, string | number>),
+    create: (body: {
+      agent_run_id: string;
+      accuracy?: number;
+      groundedness?: number;
+      hallucination_flag?: boolean;
+      tool_success_rate?: number;
+      evaluator?: string;
+      notes?: string;
+    }) => post<{ id: string; agent_run_id: string; created_at: string }>("/agents/evaluations", body),
+  },
+  logs: {
+    list: (params?: { limit?: number; level?: string }) =>
+      get<{ source: string; count: number; entries: LogEntry[] }>("/logs", params as Record<string, string | number>),
+  },
+  audit: {
+    list: (params?: { entity_type?: string; actor_id?: string; limit?: number; offset?: number }) =>
+      get<{ total: number; entries: AuditEntry[] }>("/audit", params as Record<string, string | number>),
   },
 };

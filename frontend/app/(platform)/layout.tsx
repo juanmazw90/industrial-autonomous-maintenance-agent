@@ -9,15 +9,30 @@ import {
   BellRing,
   Activity,
   ChevronRight,
+  FlaskConical,
+  DatabaseZap,
+  ClipboardCheck,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/dashboard", label: "Operations", icon: LayoutDashboard },
-  { href: "/assets",    label: "Fleet",      icon: Cpu },
-  { href: "/agents",    label: "AI Agents",  icon: Bot },
-  { href: "/alerts",    label: "Alerts",     icon: BellRing },
-  { href: "/monitoring",label: "Services",   icon: Activity },
+type NavItem =
+  | { group: string }
+  | { href: string; label: string; icon: React.ElementType };
+
+const NAV: NavItem[] = [
+  { group: "Operations" },
+  { href: "/dashboard",  label: "Overview",   icon: LayoutDashboard },
+  { href: "/assets",     label: "Fleet",      icon: Cpu },
+  { href: "/alerts",     label: "Alerts",     icon: BellRing },
+  { group: "AI / ML" },
+  { href: "/agents",     label: "AI Agents",  icon: Bot },
+  { href: "/models",     label: "ML Models",  icon: FlaskConical },
+  { href: "/rag",        label: "RAG",        icon: DatabaseZap },
+  { href: "/evaluation", label: "Evaluation", icon: ClipboardCheck },
+  { group: "Platform" },
+  { href: "/logs",       label: "Logs",       icon: ScrollText },
+  { href: "/monitoring", label: "Services",   icon: Activity },
 ];
 
 function Sidebar() {
@@ -33,8 +48,16 @@ function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex flex-col gap-0.5 px-3 pt-4 flex-1">
-        {NAV.map(({ href, label, icon: Icon }) => {
+      <nav className="flex flex-col gap-0.5 px-3 pt-4 flex-1 overflow-y-auto">
+        {NAV.map((item, i) => {
+          if ("group" in item) {
+            return (
+              <p key={i} className="text-[10px] text-gray-600 uppercase tracking-widest px-3 pt-3 pb-1 font-medium">
+                {item.group}
+              </p>
+            );
+          }
+          const { href, label, icon: Icon } = item;
           const active = path === href || path.startsWith(href + "/");
           return (
             <Link
