@@ -17,6 +17,11 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 
 type Tab = "metrics" | "drift";
 
+const TAB_LABELS: Record<Tab, string> = {
+  metrics: "Métricas",
+  drift:   "Deriva",
+};
+
 function MetricTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-gray-900/60 border border-gray-800 rounded-xl px-5 py-4">
@@ -41,7 +46,7 @@ function MetricsTab({ name }: { name: string }) {
   if (isLoading) return <div className="animate-pulse h-64 bg-gray-800/40 rounded-xl" />;
   if (error)
     return <div className="rounded-xl border border-red-800/60 bg-red-950/30 px-5 py-4 text-sm text-red-400">
-      Could not load metrics.
+      No se pudieron cargar las métricas.
     </div>;
   if (!data) return null;
 
@@ -87,8 +92,8 @@ function MetricsTab({ name }: { name: string }) {
           <table className="w-full text-sm">
             <thead className="bg-gray-900/80 border-b border-gray-800">
               <tr className="text-[11px] text-gray-500 uppercase tracking-wider">
-                <th className="px-4 py-3 text-left">Metric</th>
-                <th className="px-4 py-3 text-right">Value</th>
+                <th className="px-4 py-3 text-left">Métrica</th>
+                <th className="px-4 py-3 text-right">Valor</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
@@ -108,7 +113,7 @@ function MetricsTab({ name }: { name: string }) {
       {/* Feature importance chart */}
       {fiEntries.length > 0 && (
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-4">Feature Importance (top 15)</h3>
+          <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-4">Importancia de Variables (top 15)</h3>
           <ResponsiveContainer width="100%" height={Math.max(200, fiEntries.length * 22)}>
             <BarChart data={fiEntries} layout="vertical" margin={{ left: 16, right: 16 }}>
               <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -132,7 +137,7 @@ function MetricsTab({ name }: { name: string }) {
       {/* Params */}
       {Object.keys(params).length > 0 && (
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-3">Training Parameters</h3>
+          <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-3">Parámetros de Entrenamiento</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {Object.entries(params).map(([k, v]) => (
               <div key={k} className="text-xs">
@@ -146,7 +151,7 @@ function MetricsTab({ name }: { name: string }) {
 
       {/* Run link */}
       <p className="text-xs text-gray-600">
-        MLflow run: <span className="font-mono text-gray-500">{data.run_id}</span>
+        Ejecución MLflow: <span className="font-mono text-gray-500">{data.run_id}</span>
       </p>
     </div>
   );
@@ -165,7 +170,7 @@ function DriftTab({ name }: { name: string }) {
   if (data.status === "no_report") {
     return (
       <div className="rounded-xl border border-gray-800 bg-gray-900/40 px-5 py-8 text-center space-y-3">
-        <p className="text-sm text-gray-400">No drift report available yet.</p>
+        <p className="text-sm text-gray-400">Sin informe de deriva disponible aún.</p>
         <p className="text-xs text-gray-600">{data.message}</p>
       </div>
     );
@@ -183,11 +188,11 @@ function DriftTab({ name }: { name: string }) {
         <div className={`w-3 h-3 rounded-full ${drifted ? "bg-red-500 animate-pulse" : "bg-green-500"}`} />
         <div>
           <p className={`text-sm font-semibold ${drifted ? "text-red-400" : "text-green-400"}`}>
-            {drifted ? "Dataset drift detected" : "No dataset drift"}
+            {drifted ? "Deriva de dataset detectada" : "Sin deriva de dataset"}
           </p>
           {sharePct && (
             <p className="text-xs text-gray-500 mt-0.5">
-              {sharePct}% of features drifted
+              {sharePct}% de variables con deriva
               {data.number_of_drifted_columns != null && ` (${data.number_of_drifted_columns} / ${data.number_of_columns})`}
             </p>
           )}
@@ -198,7 +203,7 @@ function DriftTab({ name }: { name: string }) {
           rel="noopener"
           className="ml-auto flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 border border-indigo-900/60 px-3 py-1.5 rounded-lg"
         >
-          Full report <ExternalLink size={11} />
+          Informe completo <ExternalLink size={11} />
         </a>
       </div>
 
@@ -208,10 +213,10 @@ function DriftTab({ name }: { name: string }) {
           <table className="w-full text-sm">
             <thead className="bg-gray-900/80 border-b border-gray-800">
               <tr className="text-[11px] text-gray-500 uppercase tracking-wider">
-                <th className="px-4 py-3 text-left">Feature</th>
-                <th className="px-4 py-3 text-left">Test</th>
+                <th className="px-4 py-3 text-left">Variable</th>
+                <th className="px-4 py-3 text-left">Prueba</th>
                 <th className="px-4 py-3 text-right">p-value</th>
-                <th className="px-4 py-3 text-center">Drift</th>
+                <th className="px-4 py-3 text-center">Deriva</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
@@ -237,7 +242,7 @@ function DriftTab({ name }: { name: string }) {
       )}
 
       {data.generated_at && (
-        <p className="text-xs text-gray-600">Report generated: {data.generated_at}</p>
+        <p className="text-xs text-gray-600">Informe generado: {data.generated_at}</p>
       )}
     </div>
   );
@@ -255,7 +260,7 @@ export default function ModelDetailPage({ params }: { params: { name: string } }
         </Link>
         <div>
           <h1 className="text-xl font-semibold text-gray-100 font-mono">{name}</h1>
-          <p className="text-sm text-gray-500">MLflow model details</p>
+          <p className="text-sm text-gray-500">Detalles del modelo MLflow</p>
         </div>
       </div>
 
@@ -265,13 +270,13 @@ export default function ModelDetailPage({ params }: { params: { name: string } }
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors capitalize ${
+            className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
               tab === t
                 ? "border-indigo-500 text-indigo-400"
                 : "border-transparent text-gray-500 hover:text-gray-300"
             }`}
           >
-            {t}
+            {TAB_LABELS[t]}
           </button>
         ))}
       </div>

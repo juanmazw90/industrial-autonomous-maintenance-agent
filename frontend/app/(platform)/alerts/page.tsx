@@ -118,8 +118,8 @@ export default function AlertsPage() {
       {/* Header */}
       <div className="flex items-baseline justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Alert Center</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Monitor and respond to system alerts</p>
+          <h1 className="text-xl font-semibold text-gray-100">Centro de Alertas</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Monitorear y responder alertas del sistema</p>
         </div>
         <div className="flex items-center gap-4 text-xs">
           {["critical", "high", "medium", "low"].map((s) => (
@@ -139,11 +139,11 @@ export default function AlertsPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="bg-transparent text-gray-300 outline-none cursor-pointer"
           >
-            <option value="">All statuses</option>
-            <option value="new">New</option>
-            <option value="acknowledged">Acknowledged</option>
-            <option value="assigned">Assigned</option>
-            <option value="resolved">Resolved</option>
+            <option value="">Todos los estados</option>
+            <option value="new">Nuevo</option>
+            <option value="acknowledged">Reconocido</option>
+            <option value="assigned">Asignado</option>
+            <option value="resolved">Resuelto</option>
           </select>
         </div>
         <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm">
@@ -152,45 +152,45 @@ export default function AlertsPage() {
             onChange={(e) => setSeverityFilter(e.target.value)}
             className="bg-transparent text-gray-300 outline-none cursor-pointer"
           >
-            <option value="">All severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="">Todas las severidades</option>
+            <option value="critical">Crítico</option>
+            <option value="high">Alto</option>
+            <option value="medium">Medio</option>
+            <option value="low">Bajo</option>
           </select>
         </div>
-        <span className="text-xs text-gray-600 self-center ml-auto">{total} alerts</span>
+        <span className="text-xs text-gray-600 self-center ml-auto">{total} alertas</span>
       </div>
 
       {error && (
         <div className="rounded-xl border border-red-800/60 bg-red-950/30 px-5 py-4 text-sm text-red-400 mb-4">
-          Failed to load alerts.
+          Error al cargar alertas.
         </div>
       )}
 
       {alerts.length === 0 && !isLoading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <CheckCircle2 size={32} className="text-green-500/40" />
-          <p className="text-gray-600 text-sm">No alerts match your filter.</p>
+          <p className="text-gray-600 text-sm">Ninguna alerta coincide con el filtro.</p>
         </div>
       ) : (
         <div className="border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-900/80 border-b border-gray-800">
               <tr className="text-[11px] text-gray-500 uppercase tracking-wider">
-                <th className="px-4 py-3 text-left">Severity</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Title</th>
-                <th className="px-4 py-3 text-left">Machine</th>
-                <th className="px-4 py-3 text-left">Source</th>
-                <th className="px-4 py-3 text-left">Created</th>
-                <th className="px-4 py-3 text-left">Actions</th>
+                <th className="px-4 py-3 text-left">Severidad</th>
+                <th className="px-4 py-3 text-left">Estado</th>
+                <th className="px-4 py-3 text-left">Título</th>
+                <th className="px-4 py-3 text-left">Máquina</th>
+                <th className="px-4 py-3 text-left">Fuente</th>
+                <th className="px-4 py-3 text-left">Creado</th>
+                <th className="px-4 py-3 text-left">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-600 text-xs">Loading…</td>
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-600 text-xs">Cargando…</td>
                 </tr>
               ) : (
                 alerts.map((a) => (

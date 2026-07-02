@@ -36,11 +36,11 @@ function SummaryPanel({ evals }: { evals: Evaluation[] }) {
 
   return (
     <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5 mb-8">
-      <h2 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Aggregated KPIs ({evals.length} evaluations)</h2>
-      <KpiRow label="Avg Accuracy"         value={<ScoreBadge value={avg("accuracy")} />} />
-      <KpiRow label="Avg Groundedness"     value={<ScoreBadge value={avg("groundedness")} />} />
-      <KpiRow label="Hallucination Rate"   value={<ScoreBadge value={hallucinationRate} inverted />} />
-      <KpiRow label="Avg Tool Success"     value={<ScoreBadge value={avg("tool_success_rate")} />} />
+      <h2 className="text-xs text-gray-500 uppercase tracking-wider mb-2">KPIs Agregados ({evals.length} evaluaciones)</h2>
+      <KpiRow label="Precisión Media"       value={<ScoreBadge value={avg("accuracy")} />} />
+      <KpiRow label="Fundamentación Media"  value={<ScoreBadge value={avg("groundedness")} />} />
+      <KpiRow label="Tasa de Alucinación"  value={<ScoreBadge value={hallucinationRate} inverted />} />
+      <KpiRow label="Éxito de Herramientas" value={<ScoreBadge value={avg("tool_success_rate")} />} />
     </div>
   );
 }
@@ -75,7 +75,7 @@ function CreateForm({ onClose }: { onClose: () => void }) {
   }
 
   function submit() {
-    if (!form.agent_run_id.trim()) { setErr("Agent run ID is required"); return; }
+    if (!form.agent_run_id.trim()) { setErr("El ID de ejecución es obligatorio"); return; }
     mutation.mutate({
       agent_run_id: form.agent_run_id.trim(),
       accuracy: parseOptFloat(form.accuracy),
@@ -93,13 +93,13 @@ function CreateForm({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-gray-950/80 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-200">New Evaluation</h3>
+          <h3 className="text-sm font-semibold text-gray-200">Nueva Evaluación</h3>
           <button onClick={onClose} className="text-gray-600 hover:text-gray-300"><X size={16} /></button>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Agent Run ID *</label>
+            <label className="text-xs text-gray-500 mb-1 block">ID de Ejecución *</label>
             <input className={inp} placeholder="uuid…" value={form.agent_run_id}
               onChange={(e) => setForm({ ...form, agent_run_id: e.target.value })} />
           </div>
@@ -117,15 +117,15 @@ function CreateForm({ onClose }: { onClose: () => void }) {
             <input type="checkbox" id="hal" checked={form.hallucination_flag}
               onChange={(e) => setForm({ ...form, hallucination_flag: e.target.checked })}
               className="accent-red-500" />
-            <label htmlFor="hal" className="text-sm text-gray-400">Hallucination detected</label>
+            <label htmlFor="hal" className="text-sm text-gray-400">Alucinación detectada</label>
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Evaluator</label>
+            <label className="text-xs text-gray-500 mb-1 block">Evaluador</label>
             <input className={inp} placeholder="human / llm-judge / batch" value={form.evaluator}
               onChange={(e) => setForm({ ...form, evaluator: e.target.value })} />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Notes</label>
+            <label className="text-xs text-gray-500 mb-1 block">Notas</label>
             <textarea className={inp + " resize-none"} rows={2} value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
@@ -140,11 +140,11 @@ function CreateForm({ onClose }: { onClose: () => void }) {
         <div className="flex gap-3 pt-1">
           <button onClick={onClose}
             className="flex-1 py-2 text-sm border border-gray-700 rounded-lg text-gray-400 hover:text-gray-200 transition-colors">
-            Cancel
+            Cancelar
           </button>
           <button onClick={submit} disabled={mutation.isPending}
             className="flex-1 py-2 text-sm bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg transition-colors disabled:opacity-50">
-            {mutation.isPending ? "Saving…" : "Save Evaluation"}
+            {mutation.isPending ? "Guardando…" : "Guardar Evaluación"}
           </button>
         </div>
       </div>
@@ -169,14 +169,14 @@ export default function EvaluationPage() {
     <div className="px-8 py-8 max-w-5xl">
       <div className="flex items-baseline justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Agent Evaluation</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Response quality, groundedness &amp; hallucination tracking</p>
+          <h1 className="text-xl font-semibold text-gray-100">Evaluación de Agentes</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Calidad de respuesta, fundamentación y seguimiento de alucinaciones</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 text-sm bg-indigo-700 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
         >
-          <Plus size={14} />New Evaluation
+          <Plus size={14} />Nueva Evaluación
         </button>
       </div>
 
@@ -187,18 +187,18 @@ export default function EvaluationPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-900/80 border-b border-gray-800">
             <tr className="text-[11px] text-gray-500 uppercase tracking-wider">
-              <th className="px-4 py-3 text-left">Run ID</th>
-              <th className="px-4 py-3 text-center">Accuracy</th>
-              <th className="px-4 py-3 text-center">Groundedness</th>
-              <th className="px-4 py-3 text-center">Hallucination</th>
-              <th className="px-4 py-3 text-center">Tool Success</th>
-              <th className="px-4 py-3 text-left">Evaluator</th>
-              <th className="px-4 py-3 text-left">Created</th>
+              <th className="px-4 py-3 text-left">ID de Ejecución</th>
+              <th className="px-4 py-3 text-center">Precisión</th>
+              <th className="px-4 py-3 text-center">Fundamentación</th>
+              <th className="px-4 py-3 text-center">Alucinación</th>
+              <th className="px-4 py-3 text-center">Éxito Tool</th>
+              <th className="px-4 py-3 text-left">Evaluador</th>
+              <th className="px-4 py-3 text-left">Creado</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/60">
             {isLoading && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-600 text-xs">Loading…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-600 text-xs">Cargando…</td></tr>
             )}
             {evals.map((e) => (
               <tr key={e.id} className="hover:bg-gray-900/40 transition-colors group">
@@ -222,8 +222,8 @@ export default function EvaluationPage() {
               <tr>
                 <td colSpan={7} className="px-4 py-16 text-center space-y-2">
                   <ClipboardCheck size={28} className="mx-auto text-gray-700" />
-                  <p className="text-sm text-gray-600">No evaluations yet.</p>
-                  <p className="text-xs text-gray-700">Click "New Evaluation" to log a manual quality review.</p>
+                  <p className="text-sm text-gray-600">Sin evaluaciones aún.</p>
+                  <p className="text-xs text-gray-700">Haz clic en "Nueva Evaluación" para registrar una revisión manual.</p>
                 </td>
               </tr>
             )}

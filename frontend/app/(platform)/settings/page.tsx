@@ -70,26 +70,26 @@ export default function SettingsPage() {
   return (
     <div className="px-8 py-8 max-w-3xl space-y-10">
       <div>
-        <h1 className="text-xl font-semibold text-gray-100">Settings</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Platform configuration &amp; architecture decisions</p>
+        <h1 className="text-xl font-semibold text-gray-100">Configuración</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Configuración de la plataforma y decisiones de arquitectura</p>
       </div>
 
       {/* ── Platform info ─────────────────────────────────────────────────── */}
       <section>
-        <SectionHeader title="Platform" subtitle="Runtime information" />
+        <SectionHeader title="Plataforma" subtitle="Información de ejecución" />
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl px-5">
-          <ConfigRow label="Backend API"      value="v2 (0.7.0)" />
+          <ConfigRow label="API Backend"       value="v2 (0.7.0)" />
           <ConfigRow label="API Base URL"     value="/api/v2" mono />
           <ConfigRow label="Frontend"         value="Next.js 14 App Router" />
-          <ConfigRow label="Data Refresh"     value="15 s polling (TanStack Query)" />
-          <ConfigRow label="Fleet Size"       value={ops ? `${ops.machines.total} machines` : "—"} />
-          <ConfigRow label="Risk Exposure"    value={ops ? `$${ops.risk_exposure_usd.toLocaleString()}` : "—"} />
+          <ConfigRow label="Refresco de Datos" value="15 s polling (TanStack Query)" />
+          <ConfigRow label="Tamaño de Flota"  value={ops ? `${ops.machines.total} máquinas` : "—"} />
+          <ConfigRow label="Exposición al Riesgo" value={ops ? `$${ops.risk_exposure_usd.toLocaleString()}` : "—"} />
         </div>
       </section>
 
       {/* ── Services ─────────────────────────────────────────────────────── */}
       <section>
-        <SectionHeader title="Services" subtitle="Infrastructure health — auto-refreshes every 60 s" />
+        <SectionHeader title="Servicios" subtitle="Estado de la infraestructura — se actualiza cada 60 s" />
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl px-5">
           <StatusRow
             label="PostgreSQL"
@@ -111,7 +111,7 @@ export default function SettingsPage() {
 
       {/* ── AI / ML ──────────────────────────────────────────────────────── */}
       <section>
-        <SectionHeader title="AI / ML Configuration" subtitle="Model serving and observability" />
+        <SectionHeader title="Configuración IA / ML" subtitle="Servicio de modelos y observabilidad" />
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl px-5">
           <ConfigRow label="ML Tracking"     value="MLflow (SQLite backend)" />
           <ConfigRow label="Models"          value="amia-failure-prediction · amia-rca-model · amia-rul-model" />
@@ -124,24 +124,24 @@ export default function SettingsPage() {
 
       {/* ── API versioning ───────────────────────────────────────────────── */}
       <section>
-        <SectionHeader title="API Versioning" />
+        <SectionHeader title="Versionado de API" />
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl px-5">
           <div className="py-3 border-b border-gray-800/60 flex items-center justify-between">
             <span className="text-sm text-gray-500">v2 endpoints</span>
-            <span className="text-xs font-semibold text-green-400 bg-green-950/40 border border-green-800/50 px-2 py-0.5 rounded uppercase">Active</span>
+            <span className="text-xs font-semibold text-green-400 bg-green-950/40 border border-green-800/50 px-2 py-0.5 rounded uppercase">Activo</span>
           </div>
           <div className="py-3 border-b border-gray-800/60 flex items-center justify-between">
             <span className="text-sm text-gray-500">v1 legacy endpoints</span>
-            <span className="text-xs font-semibold text-yellow-400 bg-yellow-950/40 border border-yellow-800/50 px-2 py-0.5 rounded uppercase">Deprecated</span>
+            <span className="text-xs font-semibold text-yellow-400 bg-yellow-950/40 border border-yellow-800/50 px-2 py-0.5 rounded uppercase">Deprecado</span>
           </div>
           <div className="py-3 flex gap-2">
             <Info size={13} className="text-gray-600 shrink-0 mt-0.5" />
             <p className="text-xs text-gray-600">
-              Legacy v1 routes (<code className="font-mono text-gray-500">/predict/failure</code>,{" "}
-              <code className="font-mono text-gray-500">/work-orders</code>, etc.) respond with{" "}
-              <code className="font-mono text-gray-500">Deprecation: true</code> and{" "}
-              <code className="font-mono text-gray-500">Sunset</code> headers.
-              They will be removed in v3.
+              Las rutas legacy v1 (<code className="font-mono text-gray-500">/predict/failure</code>,{" "}
+              <code className="font-mono text-gray-500">/work-orders</code>, etc.) responden con{" "}
+              <code className="font-mono text-gray-500">Deprecation: true</code> y{" "}
+              headers <code className="font-mono text-gray-500">Sunset</code>.
+              Serán eliminadas en v3.
             </p>
           </div>
         </div>
@@ -149,32 +149,32 @@ export default function SettingsPage() {
 
       {/* ── ADR ──────────────────────────────────────────────────────────── */}
       <section>
-        <SectionHeader title="Architecture Decision Records" subtitle="Key design choices" />
+        <SectionHeader title="Registros de Decisiones de Arquitectura" subtitle="Decisiones clave de diseño" />
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl px-5">
           <AdrNote
             code="ADR-01"
-            title="No real authentication"
-            decision="Demo scope — all endpoints are public. Production would add JWT/OAuth2 via FastAPI-Security."
+            title="Sin autenticación real"
+            decision="Alcance de demo — todos los endpoints son públicos. En producción se añadiría JWT/OAuth2 vía FastAPI-Security."
           />
           <AdrNote
             code="ADR-02"
-            title="Mock CMMS integration"
-            decision="Work orders are stored locally in PostgreSQL. A production deployment would sync with SAP PM / IBM Maximo via REST webhook."
+            title="Integración CMMS simulada"
+            decision="Las órdenes de trabajo se almacenan localmente en PostgreSQL. En producción se sincronizaría con SAP PM / IBM Maximo vía webhook REST."
           />
           <AdrNote
             code="ADR-03"
-            title="XGBoost over deep learning"
-            decision="Only ~48 distinct failure events in training set. LSTM/Transformer would overfit; XGBoost gives stable SHAP explanations and sub-second inference."
+            title="XGBoost en lugar de deep learning"
+            decision="Solo ~48 eventos de fallo distintos en el conjunto de entrenamiento. LSTM/Transformer sobreajustarían; XGBoost ofrece explicaciones SHAP estables e inferencia en menos de un segundo."
           />
           <AdrNote
             code="ADR-04"
-            title="SQLite MLflow tracking"
-            decision="No MLflow server running in demo. MLFLOW_TRACKING_URI points to a local SQLite file. Production: managed MLflow on PostgreSQL + S3 artifacts."
+            title="Seguimiento MLflow con SQLite"
+            decision="No hay servidor MLflow en la demo. MLFLOW_TRACKING_URI apunta a un archivo SQLite local. En producción: MLflow gestionado en PostgreSQL + artefactos en S3."
           />
           <AdrNote
             code="ADR-05"
-            title="Structured logging (structlog)"
-            decision="All backend logs emit JSON lines. Set LOG_FILE_PATH env var to stream them into the Logs Explorer page."
+            title="Logging estructurado (structlog)"
+            decision="Todos los logs del backend emiten líneas JSON. Establece la variable LOG_FILE_PATH para transmitirlos al Explorador de Registros."
           />
         </div>
       </section>

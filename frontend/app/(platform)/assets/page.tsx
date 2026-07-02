@@ -8,9 +8,9 @@ import { fmt, fmtTs } from "@/lib/utils";
 import { Search, AlertTriangle, ChevronRight, Filter } from "lucide-react";
 
 const STATUS_CFG = {
-  healthy:  { dot: "bg-green-400",  badge: "text-green-400 bg-green-950/50 border-green-800/60", label: "Healthy" },
-  warning:  { dot: "bg-yellow-400", badge: "text-yellow-400 bg-yellow-950/50 border-yellow-700/60", label: "Warning" },
-  critical: { dot: "bg-red-500 animate-pulse", badge: "text-red-400 bg-red-950/50 border-red-700/60", label: "Critical" },
+  healthy:  { dot: "bg-green-400",  badge: "text-green-400 bg-green-950/50 border-green-800/60", label: "Saludable" },
+  warning:  { dot: "bg-yellow-400", badge: "text-yellow-400 bg-yellow-950/50 border-yellow-700/60", label: "Advertencia" },
+  critical: { dot: "bg-red-500 animate-pulse", badge: "text-red-400 bg-red-950/50 border-red-700/60", label: "Crítico" },
 };
 
 function MachineCard({ m }: { m: FleetMachine }) {
@@ -37,7 +37,7 @@ function MachineCard({ m }: { m: FleetMachine }) {
         {/* Failure probability bar */}
         <div>
           <div className="flex items-baseline justify-between mb-1">
-            <span className="text-[11px] text-gray-600">Failure risk</span>
+            <span className="text-[11px] text-gray-600">Riesgo de fallo</span>
             <span className={`text-lg font-bold tabular-nums ${probPct != null && probPct >= 70 ? "text-red-400" : probPct != null && probPct >= 35 ? "text-yellow-400" : "text-green-400"}`}>
               {probPct != null ? `${probPct}%` : "—"}
             </span>
@@ -61,7 +61,7 @@ function MachineCard({ m }: { m: FleetMachine }) {
               </span>
             )}
             <span className="group-hover:text-indigo-400 transition-colors flex items-center gap-0.5">
-              Detail <ChevronRight size={11} />
+              Detalle <ChevronRight size={11} />
             </span>
           </div>
         </div>
@@ -104,13 +104,13 @@ export default function FleetPage() {
       {/* Header */}
       <div className="flex items-baseline justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Fleet</h1>
-          <p className="text-sm text-gray-500 mt-0.5">All monitored machines with live predictions</p>
+          <h1 className="text-xl font-semibold text-gray-100">Flota</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Todas las máquinas monitorizadas con predicciones en tiempo real</p>
         </div>
         <div className="flex items-center gap-3 text-xs text-gray-500">
-          <span className="text-green-400">● {counts.healthy ?? 0} healthy</span>
-          <span className="text-yellow-400">● {counts.warning ?? 0} warning</span>
-          <span className="text-red-400">● {counts.critical ?? 0} critical</span>
+          <span className="text-green-400">● {counts.healthy ?? 0} saludable</span>
+          <span className="text-yellow-400">● {counts.warning ?? 0} advertencia</span>
+          <span className="text-red-400">● {counts.critical ?? 0} crítico</span>
         </div>
       </div>
 
@@ -120,7 +120,7 @@ export default function FleetPage() {
           <Search size={14} className="text-gray-500 shrink-0" />
           <input
             type="text"
-            placeholder="Search machines…"
+            placeholder="Buscar máquinas…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-transparent outline-none text-gray-200 placeholder-gray-600 w-full"
@@ -133,10 +133,10 @@ export default function FleetPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="bg-transparent outline-none text-gray-300 cursor-pointer"
           >
-            <option value="">All status</option>
-            <option value="healthy">Healthy</option>
-            <option value="warning">Warning</option>
-            <option value="critical">Critical</option>
+            <option value="">Todos los estados</option>
+            <option value="healthy">Saludable</option>
+            <option value="warning">Advertencia</option>
+            <option value="critical">Crítico</option>
           </select>
         </div>
       </div>
@@ -144,12 +144,12 @@ export default function FleetPage() {
       {isLoading && <Skeleton />}
       {error && (
         <div className="rounded-xl border border-red-800/60 bg-red-950/30 px-5 py-4 text-sm text-red-400">
-          Failed to load fleet data.
+          Error al cargar datos de flota.
         </div>
       )}
       {filtered.length === 0 && !isLoading && !error && (
         <div className="flex flex-col items-center justify-center py-20 text-gray-600 text-sm gap-2">
-          <span>No machines match your filter.</span>
+          <span>Ninguna máquina coincide con el filtro.</span>
         </div>
       )}
 

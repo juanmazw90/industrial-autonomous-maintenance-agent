@@ -23,20 +23,20 @@ type NavItem =
   | { href: string; label: string; icon: React.ElementType };
 
 const NAV: NavItem[] = [
-  { group: "Operations" },
-  { href: "/dashboard",  label: "Overview",   icon: LayoutDashboard },
-  { href: "/assets",     label: "Fleet",      icon: Cpu },
-  { href: "/alerts",       label: "Alerts",       icon: BellRing },
-  { href: "/work-orders",  label: "Work Orders",  icon: Wrench },
-  { group: "AI / ML" },
-  { href: "/agents",     label: "AI Agents",  icon: Bot },
-  { href: "/models",     label: "ML Models",  icon: FlaskConical },
-  { href: "/rag",        label: "RAG",        icon: DatabaseZap },
-  { href: "/evaluation", label: "Evaluation", icon: ClipboardCheck },
-  { group: "Platform" },
-  { href: "/logs",        label: "Logs",       icon: ScrollText },
-  { href: "/monitoring",  label: "Services",   icon: Activity },
-  { href: "/settings",    label: "Settings",   icon: Settings },
+  { group: "Operaciones" },
+  { href: "/dashboard",  label: "Visión General",      icon: LayoutDashboard },
+  { href: "/assets",     label: "Flota",               icon: Cpu },
+  { href: "/alerts",       label: "Alertas",           icon: BellRing },
+  { href: "/work-orders",  label: "Órdenes de Trabajo", icon: Wrench },
+  { group: "IA / ML" },
+  { href: "/agents",     label: "Agentes IA",  icon: Bot },
+  { href: "/models",     label: "Modelos ML",  icon: FlaskConical },
+  { href: "/rag",        label: "RAG",         icon: DatabaseZap },
+  { href: "/evaluation", label: "Evaluación",  icon: ClipboardCheck },
+  { group: "Plataforma" },
+  { href: "/logs",        label: "Registros",  icon: ScrollText },
+  { href: "/monitoring",  label: "Servicios",  icon: Activity },
+  { href: "/settings",    label: "Configuración", icon: Settings },
 ];
 
 function Sidebar() {
@@ -85,7 +85,7 @@ function Sidebar() {
       {/* Footer */}
       <div className="px-5 py-4 border-t border-gray-800">
         <Link href="/" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
-          ← Back to Chat
+          ← Volver al Chat
         </Link>
       </div>
     </aside>

@@ -36,8 +36,8 @@ export default function MonitoringPage() {
     <div className="px-8 py-8 max-w-4xl">
       <div className="flex items-baseline justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Services</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Backend infrastructure health</p>
+          <h1 className="text-xl font-semibold text-gray-100">Servicios</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Estado de la infraestructura backend</p>
         </div>
         <div className="flex items-center gap-3">
           {data && (
@@ -47,7 +47,7 @@ export default function MonitoringPage() {
           )}
           {dataUpdatedAt > 0 && (
             <p className="text-xs text-gray-600">
-              Checked {fmtTs(new Date(dataUpdatedAt).toISOString())}
+              Verificado {fmtTs(new Date(dataUpdatedAt).toISOString())}
             </p>
           )}
         </div>

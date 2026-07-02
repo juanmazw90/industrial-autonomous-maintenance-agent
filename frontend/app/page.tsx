@@ -116,9 +116,14 @@ export default function ChatPage() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Generate session ID client-side only to avoid SSR/hydration mismatch
+    setSessionId(crypto.randomUUID());
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -167,7 +172,7 @@ export default function ChatPage() {
           <span className="text-gray-400 text-sm">AMIA — AI Maintenance Agent</span>
         </div>
         <a href="/dashboard" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-900/60 px-2.5 py-1 rounded-lg">
-          Platform →
+          Plataforma →
         </a>
       </header>
 

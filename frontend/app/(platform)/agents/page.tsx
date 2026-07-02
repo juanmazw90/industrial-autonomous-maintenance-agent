@@ -36,24 +36,24 @@ function AgentCard({
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs mt-1">
         <div>
-          <p className="text-gray-600">Calls</p>
+          <p className="text-gray-600">Llamadas</p>
           <p className="font-bold tabular-nums text-gray-100 text-base">{total_calls}</p>
         </div>
         <div>
-          <p className="text-gray-600">Success</p>
+          <p className="text-gray-600">Éxito</p>
           <p className="font-bold tabular-nums text-gray-100 text-base">{(success_rate * 100).toFixed(0)}%</p>
         </div>
         <div>
-          <p className="text-gray-600">p50 latency</p>
+          <p className="text-gray-600">latencia p50</p>
           <p className="font-medium text-gray-300">{fmtDuration(latency_p50_ms)}</p>
         </div>
         <div>
-          <p className="text-gray-600">p95 latency</p>
+          <p className="text-gray-600">latencia p95</p>
           <p className="font-medium text-gray-300">{fmtDuration(latency_p95_ms)}</p>
         </div>
       </div>
       <p className="text-[11px] text-gray-500 border-t border-current/10 pt-2 mt-auto">
-        Total cost: <span className="font-mono">${cost_usd_total.toFixed(4)}</span>
+        Costo total: <span className="font-mono">${cost_usd_total.toFixed(4)}</span>
       </p>
     </div>
   );
@@ -106,7 +106,7 @@ function RunsTable() {
             onChange={(e) => { setAgentFilter(e.target.value); setPage(0); }}
             className="bg-transparent text-gray-300 outline-none cursor-pointer"
           >
-            <option value="">All agents</option>
+            <option value="">Todos los agentes</option>
             {Object.keys(AGENT_COLORS).map((a) => (
               <option key={a} value={a}>{a}</option>
             ))}
@@ -118,13 +118,13 @@ function RunsTable() {
             onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
             className="bg-transparent text-gray-300 outline-none cursor-pointer"
           >
-            <option value="">All statuses</option>
-            <option value="success">Success</option>
+            <option value="">Todos los estados</option>
+            <option value="success">Éxito</option>
             <option value="error">Error</option>
-            <option value="running">Running</option>
+            <option value="running">Ejecutando</option>
           </select>
         </div>
-        <span className="text-xs text-gray-600 ml-auto">{total} total runs</span>
+        <span className="text-xs text-gray-600 ml-auto">{total} ejecuciones en total</span>
       </div>
 
       {/* Table */}
@@ -132,19 +132,19 @@ function RunsTable() {
         <table className="w-full text-sm">
           <thead className="bg-gray-900/80 border-b border-gray-800">
             <tr className="text-xs text-gray-500 uppercase tracking-wider">
-              <th className="px-4 py-3 text-left">Agent</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-right">Latency</th>
+              <th className="px-4 py-3 text-left">Agente</th>
+              <th className="px-4 py-3 text-left">Estado</th>
+              <th className="px-4 py-3 text-right">Latencia</th>
               <th className="px-4 py-3 text-right">Tokens</th>
-              <th className="px-4 py-3 text-right">Cost</th>
-              <th className="px-4 py-3 text-left">Started</th>
-              <th className="px-4 py-3 text-center">Trace</th>
+              <th className="px-4 py-3 text-right">Costo</th>
+              <th className="px-4 py-3 text-left">Iniciado</th>
+              <th className="px-4 py-3 text-center">Traza</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/60">
             {isLoading && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-600 text-xs">Loading…</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-600 text-xs">Cargando…</td>
               </tr>
             )}
             {runs.map((run) => (
@@ -189,7 +189,7 @@ function RunsTable() {
             disabled={page === 0}
             className="px-3 py-1.5 text-xs rounded-lg border border-gray-800 text-gray-500 hover:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Previous
+            Anterior
           </button>
           <span className="text-xs text-gray-600">{page + 1} / {pages}</span>
           <button
@@ -197,7 +197,7 @@ function RunsTable() {
             disabled={page >= pages - 1}
             className="px-3 py-1.5 text-xs rounded-lg border border-gray-800 text-gray-500 hover:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Next
+            Siguiente
           </button>
         </div>
       )}
@@ -216,19 +216,19 @@ export default function AgentsPage() {
     <div className="px-8 py-8 max-w-6xl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-gray-100">AI Control Center</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Agent performance, latency, token usage &amp; cost</p>
+        <h1 className="text-xl font-semibold text-gray-100">Centro de Control de Agentes IA</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Rendimiento de agentes, latencia, uso de tokens y costo</p>
       </div>
 
       {/* Totals bar */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
           {[
-            { label: "Total Runs",     value: String(summary.totals.total_calls) },
-            { label: "Success Rate",   value: `${(summary.totals.success_rate * 100).toFixed(1)}%` },
-            { label: "p50 Latency",   value: fmtDuration(summary.totals.latency_p50_ms) },
-            { label: "p95 Latency",   value: fmtDuration(summary.totals.latency_p95_ms) },
-            { label: "Total Cost",     value: `$${summary.totals.cost_usd_total.toFixed(4)}` },
+            { label: "Ejecuciones",    value: String(summary.totals.total_calls) },
+            { label: "Tasa de Éxito", value: `${(summary.totals.success_rate * 100).toFixed(1)}%` },
+            { label: "Latencia p50",  value: fmtDuration(summary.totals.latency_p50_ms) },
+            { label: "Latencia p95",  value: fmtDuration(summary.totals.latency_p95_ms) },
+            { label: "Costo Total",    value: `$${summary.totals.cost_usd_total.toFixed(4)}` },
           ].map(({ label, value }) => (
             <div key={label} className="bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-3">
               <p className="text-[11px] text-gray-600 uppercase tracking-wider">{label}</p>
@@ -249,7 +249,7 @@ export default function AgentsPage() {
 
       {/* Runs table */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Recent Runs</h2>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Ejecuciones Recientes</h2>
         <RunsTable />
       </div>
     </div>

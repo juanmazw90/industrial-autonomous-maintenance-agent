@@ -28,9 +28,9 @@ type Tab = "overview" | "timeline" | "work_orders";
 
 function TabBar({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
   const tabs: { id: Tab; label: string }[] = [
-    { id: "overview",    label: "Overview" },
-    { id: "timeline",    label: "Timeline" },
-    { id: "work_orders", label: "Work Orders" },
+    { id: "overview",    label: "Resumen" },
+    { id: "timeline",    label: "Línea de Tiempo" },
+    { id: "work_orders", label: "Órdenes de Trabajo" },
   ];
   return (
     <div className="flex gap-1 border-b border-gray-800 mb-6">
@@ -80,7 +80,7 @@ function OverviewTab({ code }: { code: string }) {
               <p className={`text-3xl font-bold tabular-nums ${probPct >= 70 ? "text-red-400" : probPct >= 35 ? "text-yellow-400" : "text-green-400"}`}>
                 {probPct}%
               </p>
-              <p className="text-xs text-gray-600">failure risk</p>
+              <p className="text-xs text-gray-600">riesgo de fallo</p>
             </div>
           )}
         </div>
@@ -90,24 +90,24 @@ function OverviewTab({ code }: { code: string }) {
       {pred && (
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5 space-y-4">
           <h3 className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <BarChart3 size={11} /> Latest Prediction — {pred.model_name}
+            <BarChart3 size={11} /> Última Predicción — {pred.model_name}
           </h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-xs text-gray-600">Failure probability</p>
+              <p className="text-xs text-gray-600">Probabilidad de fallo</p>
               <p className={`text-xl font-bold tabular-nums mt-0.5 ${probPct != null && probPct >= 70 ? "text-red-400" : probPct != null && probPct >= 35 ? "text-yellow-400" : "text-green-400"}`}>
                 {probPct != null ? `${probPct}%` : "—"}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600">Predicted at</p>
+              <p className="text-xs text-gray-600">Predicho el</p>
               <p className="text-gray-300 mt-0.5 text-sm">{fmtTs(pred.created_at)}</p>
             </div>
           </div>
           {/* SHAP top features */}
           {Array.isArray(pred.shap_top_features) && pred.shap_top_features.length > 0 && (
             <div>
-              <p className="text-xs text-gray-600 mb-2">Top contributing features (SHAP)</p>
+              <p className="text-xs text-gray-600 mb-2">Variables más influyentes (SHAP)</p>
               <div className="space-y-1.5">
                 {(pred.shap_top_features as Array<{ feature: string; value: number }>).slice(0, 5).map((f) => {
                   const abs = Math.abs(f.value);
@@ -138,7 +138,7 @@ function OverviewTab({ code }: { code: string }) {
       {data.open_alerts.length > 0 && (
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
           <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <AlertTriangle size={11} /> Open Alerts ({data.open_alerts.length})
+            <AlertTriangle size={11} /> Alertas Abiertas ({data.open_alerts.length})
           </h3>
           <div className="space-y-2">
             {data.open_alerts.map((a) => (
@@ -183,7 +183,7 @@ function TimelineTab({ code }: { code: string }) {
           onChange={(e) => setKindFilter(e.target.value)}
           className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-sm text-gray-300 outline-none cursor-pointer"
         >
-          <option value="">All events ({data?.total ?? 0})</option>
+          <option value="">Todos los eventos ({data?.total ?? 0})</option>
           {kinds.map((k) => (
             <option key={k} value={k}>{k.replace(/_/g, " ")}</option>
           ))}
@@ -191,7 +191,7 @@ function TimelineTab({ code }: { code: string }) {
       </div>
 
       {events.length === 0 ? (
-        <div className="py-16 text-center text-gray-600 text-sm">No timeline events.</div>
+        <div className="py-16 text-center text-gray-600 text-sm">Sin eventos en la línea de tiempo.</div>
       ) : (
         <div className="relative pl-6">
           {/* Vertical line */}
@@ -247,7 +247,7 @@ function WorkOrdersTab({ code }: { code: string }) {
   if (isLoading) return <div className="animate-pulse h-32 bg-gray-800/40 rounded-xl" />;
 
   return orders.length === 0 ? (
-    <div className="py-16 text-center text-gray-600 text-sm">No open work orders.</div>
+    <div className="py-16 text-center text-gray-600 text-sm">Sin órdenes de trabajo abiertas.</div>
   ) : (
     <div className="space-y-3">
       {orders.map((wo) => (
@@ -286,7 +286,7 @@ export default function AssetDetailPage({ params }: { params: { code: string } }
         </Link>
         <div>
           <h1 className="text-xl font-semibold text-gray-100">{code}</h1>
-          <p className="text-sm text-gray-500">Asset Detail</p>
+          <p className="text-sm text-gray-500">Detalle del Activo</p>
         </div>
       </div>
 

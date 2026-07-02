@@ -59,7 +59,7 @@ function LogsTable() {
           <Search size={13} className="text-gray-500 shrink-0" />
           <input
             type="text"
-            placeholder="Search logs…"
+            placeholder="Buscar registros…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-transparent outline-none text-gray-200 placeholder-gray-600 w-full text-sm"
@@ -72,35 +72,35 @@ function LogsTable() {
             onChange={(e) => setLevelFilter(e.target.value)}
             className="bg-transparent text-gray-300 outline-none cursor-pointer"
           >
-            <option value="">All levels</option>
+            <option value="">Todos los niveles</option>
             <option value="debug">Debug</option>
             <option value="info">Info</option>
-            <option value="warning">Warning</option>
+            <option value="warning">Advertencia</option>
             <option value="error">Error</option>
-            <option value="critical">Critical</option>
+            <option value="critical">Crítico</option>
           </select>
         </div>
-        <span className="text-xs text-gray-600 self-center">{entries.length} entries</span>
+        <span className="text-xs text-gray-600 self-center">{entries.length} entradas</span>
       </div>
 
       {entries.length === 0 && !isLoading ? (
         <div className="py-16 text-center text-gray-600 text-sm">
-          {data?.source === "not_configured" ? "Configure LOG_FILE_PATH to see logs here." : "No log entries match your filter."}
+          {data?.source === "not_configured" ? "Configure LOG_FILE_PATH para ver registros aquí." : "Ninguna entrada coincide con el filtro."}
         </div>
       ) : (
         <div className="border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full text-xs font-mono">
             <thead className="bg-gray-900/80 border-b border-gray-800">
               <tr className="text-[11px] text-gray-500 uppercase tracking-wider font-sans">
-                <th className="px-4 py-3 text-left w-36">Timestamp</th>
-                <th className="px-4 py-3 text-left w-20">Level</th>
+                <th className="px-4 py-3 text-left w-36">Marca de Tiempo</th>
+                <th className="px-4 py-3 text-left w-20">Nivel</th>
                 <th className="px-4 py-3 text-left w-36">Logger</th>
-                <th className="px-4 py-3 text-left">Message</th>
+                <th className="px-4 py-3 text-left">Mensaje</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/40">
               {isLoading && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-600 font-sans">Loading…</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-600 font-sans">Cargando…</td></tr>
               )}
               {entries.map((e, i) => {
                 const ts = e.timestamp as string | undefined;
@@ -162,7 +162,7 @@ function AuditTable() {
           <Search size={13} className="text-gray-500 shrink-0" />
           <input
             type="text"
-            placeholder="Search audit trail…"
+            placeholder="Buscar auditoría…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-transparent outline-none text-gray-200 placeholder-gray-600 w-full text-sm"
@@ -173,26 +173,26 @@ function AuditTable() {
           onChange={(e) => setEntityFilter(e.target.value)}
           className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300 outline-none cursor-pointer"
         >
-          <option value="">All entities</option>
+          <option value="">Todas las entidades</option>
           {entityTypes.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <span className="text-xs text-gray-600 self-center">{data?.total ?? 0} entries</span>
+        <span className="text-xs text-gray-600 self-center">{data?.total ?? 0} entradas</span>
       </div>
 
       <div className="border border-gray-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-900/80 border-b border-gray-800">
             <tr className="text-[11px] text-gray-500 uppercase tracking-wider">
-              <th className="px-4 py-3 text-left">Action</th>
-              <th className="px-4 py-3 text-left">Entity</th>
+              <th className="px-4 py-3 text-left">Acción</th>
+              <th className="px-4 py-3 text-left">Entidad</th>
               <th className="px-4 py-3 text-left">Actor</th>
               <th className="px-4 py-3 text-left">Diff</th>
-              <th className="px-4 py-3 text-left">Time</th>
+              <th className="px-4 py-3 text-left">Hora</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/60">
             {isLoading && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-600 text-xs">Loading…</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-600 text-xs">Cargando…</td></tr>
             )}
             {entries.map((e) => (
               <tr key={e.id} className="hover:bg-gray-900/40 transition-colors">
@@ -224,7 +224,7 @@ function AuditTable() {
               </tr>
             ))}
             {!isLoading && entries.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-600 text-sm">No audit entries.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-600 text-sm">Sin entradas de auditoría.</td></tr>
             )}
           </tbody>
         </table>
@@ -240,8 +240,8 @@ export default function LogsPage() {
     <div className="px-8 py-8 max-w-6xl">
       <div className="flex items-baseline justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Logs &amp; Audit</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Structured application logs and change audit trail</p>
+          <h1 className="text-xl font-semibold text-gray-100">Registros y Auditoría</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Registros estructurados de la aplicación y auditoría de cambios</p>
         </div>
         <div className="flex gap-1 bg-gray-900 border border-gray-800 rounded-lg p-1">
           {(["logs", "audit"] as View[]).map((v) => (
@@ -252,7 +252,7 @@ export default function LogsPage() {
                 view === v ? "bg-gray-800 text-gray-200" : "text-gray-500 hover:text-gray-300"
               }`}
             >
-              {v === "logs" ? "App Logs" : "Audit Trail"}
+              {v === "logs" ? "Registros de App" : "Auditoría"}
             </button>
           ))}
         </div>

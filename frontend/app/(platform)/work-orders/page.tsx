@@ -9,18 +9,25 @@ import { Plus, X, AlertCircle, ChevronRight, Wrench } from "lucide-react";
 // ── Priority config ──────────────────────────────────────────────────────────
 
 const PRIORITY_CFG: Record<WorkOrderPriority, { label: string; cls: string }> = {
-  critical: { label: "Critical", cls: "text-red-400 bg-red-950/40 border-red-800/50" },
-  high:     { label: "High",     cls: "text-orange-400 bg-orange-950/40 border-orange-800/50" },
-  medium:   { label: "Medium",   cls: "text-yellow-400 bg-yellow-950/40 border-yellow-800/50" },
-  low:      { label: "Low",      cls: "text-gray-400 bg-gray-800/40 border-gray-700/50" },
+  critical: { label: "Crítico", cls: "text-red-400 bg-red-950/40 border-red-800/50" },
+  high:     { label: "Alto",    cls: "text-orange-400 bg-orange-950/40 border-orange-800/50" },
+  medium:   { label: "Medio",   cls: "text-yellow-400 bg-yellow-950/40 border-yellow-800/50" },
+  low:      { label: "Bajo",    cls: "text-gray-400 bg-gray-800/40 border-gray-700/50" },
 };
 
 const COLUMNS: { status: WorkOrderStatus; label: string; accent: string }[] = [
-  { status: "open",        label: "Open",        accent: "border-gray-700" },
-  { status: "assigned",    label: "Assigned",     accent: "border-blue-800/60" },
-  { status: "in_progress", label: "In Progress",  accent: "border-yellow-800/60" },
-  { status: "completed",   label: "Completed",    accent: "border-green-800/60" },
+  { status: "open",        label: "Abiertas",   accent: "border-gray-700" },
+  { status: "assigned",    label: "Asignadas",  accent: "border-blue-800/60" },
+  { status: "in_progress", label: "En Progreso", accent: "border-yellow-800/60" },
+  { status: "completed",   label: "Completadas", accent: "border-green-800/60" },
 ];
+
+const NEXT_STATUS_LABEL: Record<WorkOrderStatus, string> = {
+  open:        "Asignada",
+  assigned:    "En Progreso",
+  in_progress: "Completada",
+  completed:   "",
+};
 
 const NEXT_STATUS: Record<WorkOrderStatus, WorkOrderStatus | null> = {
   open:        "assigned",
@@ -42,7 +49,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 function WOCard({ wo, onAdvance }: { wo: WorkOrder; onAdvance: (id: string, next: WorkOrderStatus) => void }) {
   const next = NEXT_STATUS[wo.status];
-  const nextLabel = next ? next.replace("_", " ") : null;
+  const nextLabel = next ? NEXT_STATUS_LABEL[wo.status] : null;
 
   return (
     <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 space-y-3 hover:border-gray-700 transition-colors">
@@ -74,12 +81,12 @@ function WOCard({ wo, onAdvance }: { wo: WorkOrder; onAdvance: (id: string, next
             onClick={() => onAdvance(wo.id, next!)}
             className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 border border-indigo-900/60 hover:border-indigo-700/60 px-2 py-1 rounded-lg transition-colors"
           >
-            Move to {nextLabel}
+            Mover a {nextLabel}
             <ChevronRight size={11} />
           </button>
         )}
         {wo.status === "completed" && (
-          <span className="text-[11px] text-green-500 font-medium">Done</span>
+          <span className="text-[11px] text-green-500 font-medium">Completado</span>
         )}
       </div>
     </div>
@@ -106,7 +113,7 @@ function KanbanColumn({
       <div className="flex flex-col gap-3">
         {orders.length === 0 && (
           <div className="py-8 text-center text-gray-700 text-xs border border-dashed border-gray-800 rounded-xl">
-            No work orders
+            Sin órdenes de trabajo
           </div>
         )}
         {orders.map((wo) => (
@@ -136,12 +143,12 @@ function CreateModal({ onClose }: { onClose: () => void }) {
       qc.invalidateQueries({ queryKey: ["work-orders"] });
       onClose();
     },
-    onError: (e) => setErr(e instanceof Error ? e.message : "Error creating work order"),
+    onError: (e) => setErr(e instanceof Error ? e.message : "Error al crear la orden de trabajo"),
   });
 
   function submit() {
-    if (!form.machine_code.trim()) { setErr("Machine code is required"); return; }
-    if (!form.title.trim()) { setErr("Title is required"); return; }
+    if (!form.machine_code.trim()) { setErr("El código de máquina es obligatorio"); return; }
+    if (!form.title.trim()) { setErr("El título es obligatorio"); return; }
     const cost = form.estimated_cost ? parseFloat(form.estimated_cost) : undefined;
     mutation.mutate({
       machine_code: form.machine_code.trim().toUpperCase(),
@@ -158,41 +165,41 @@ function CreateModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-gray-950/80 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-200">New Work Order</h3>
+          <h3 className="text-sm font-semibold text-gray-200">Nueva Orden de Trabajo</h3>
           <button onClick={onClose} className="text-gray-600 hover:text-gray-300"><X size={16} /></button>
         </div>
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Machine Code *</label>
+              <label className="text-xs text-gray-500 mb-1 block">Código de Máquina *</label>
               <input className={inp} placeholder="PUMP-001" value={form.machine_code}
                 onChange={(e) => setForm({ ...form, machine_code: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Priority</label>
+              <label className="text-xs text-gray-500 mb-1 block">Prioridad</label>
               <select className={inp + " cursor-pointer"} value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="critical">Crítico</option>
+                <option value="high">Alto</option>
+                <option value="medium">Medio</option>
+                <option value="low">Bajo</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Title *</label>
-            <input className={inp} placeholder="Bearing inspection and lubrication" value={form.title}
+            <label className="text-xs text-gray-500 mb-1 block">Título *</label>
+            <input className={inp} placeholder="Inspección y lubricación de rodamientos" value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Description</label>
-            <textarea className={inp + " resize-none"} rows={2} placeholder="Optional details…"
+            <label className="text-xs text-gray-500 mb-1 block">Descripción</label>
+            <textarea className={inp + " resize-none"} rows={2} placeholder="Detalles opcionales…"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Estimated Cost (USD)</label>
+            <label className="text-xs text-gray-500 mb-1 block">Costo Estimado (USD)</label>
             <input className={inp} type="number" min={0} step={0.01} placeholder="0.00"
               value={form.estimated_cost}
               onChange={(e) => setForm({ ...form, estimated_cost: e.target.value })} />
@@ -208,11 +215,11 @@ function CreateModal({ onClose }: { onClose: () => void }) {
         <div className="flex gap-3 pt-1">
           <button onClick={onClose}
             className="flex-1 py-2 text-sm border border-gray-700 rounded-lg text-gray-400 hover:text-gray-200 transition-colors">
-            Cancel
+            Cancelar
           </button>
           <button onClick={submit} disabled={mutation.isPending}
             className="flex-1 py-2 text-sm bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg transition-colors disabled:opacity-50">
-            {mutation.isPending ? "Creating…" : "Create Work Order"}
+            {mutation.isPending ? "Creando…" : "Crear Orden de Trabajo"}
           </button>
         </div>
       </div>
@@ -251,9 +258,9 @@ export default function WorkOrdersPage() {
     <div className="px-8 py-8 h-full flex flex-col">
       <div className="flex items-baseline justify-between mb-8 shrink-0">
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Work Orders</h1>
+          <h1 className="text-xl font-semibold text-gray-100">Órdenes de Trabajo</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {data?.total ?? 0} total &mdash; maintenance task tracking
+            {data?.total ?? 0} en total — seguimiento de tareas de mantenimiento
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -275,7 +282,7 @@ export default function WorkOrdersPage() {
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 text-sm bg-indigo-700 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
-            <Plus size={14} />New
+            <Plus size={14} />Nueva
           </button>
         </div>
       </div>
@@ -311,8 +318,8 @@ export default function WorkOrdersPage() {
       {!isLoading && allOrders.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
           <Wrench size={32} className="text-gray-700" />
-          <p className="text-sm text-gray-500">No work orders yet.</p>
-          <p className="text-xs text-gray-700">Create one manually or let the AI agent generate them from alerts.</p>
+          <p className="text-sm text-gray-500">Sin órdenes de trabajo aún.</p>
+          <p className="text-xs text-gray-700">Créala manualmente o deja que el agente IA las genere desde las alertas.</p>
         </div>
       )}
 

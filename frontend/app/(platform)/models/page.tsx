@@ -73,8 +73,8 @@ export default function ModelsPage() {
   return (
     <div className="px-8 py-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-gray-100">ML Models</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Registered models in MLflow — versions, metrics &amp; drift</p>
+        <h1 className="text-xl font-semibold text-gray-100">Modelos ML</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Modelos registrados en MLflow — versiones, métricas y deriva</p>
       </div>
 
       {isLoading && (
@@ -85,13 +85,13 @@ export default function ModelsPage() {
 
       {error && (
         <div className="rounded-xl border border-red-800/60 bg-red-950/30 px-5 py-4 text-sm text-red-400">
-          MLflow unavailable — ensure MLFLOW_TRACKING_URI is configured.
+          MLflow no disponible — asegúrese de que MLFLOW_TRACKING_URI está configurado.
         </div>
       )}
 
       {data && data.length === 0 && (
         <div className="py-16 text-center text-gray-600 text-sm">
-          No registered models found in MLflow.
+          No hay modelos registrados en MLflow.
         </div>
       )}
 

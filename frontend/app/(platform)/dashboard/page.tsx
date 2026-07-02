@@ -47,10 +47,10 @@ function Tile({
 
 function AlertBar({ alerts }: { alerts: OperationsSummary["alerts"] }) {
   const bars = [
-    { label: "Critical", count: alerts.critical, color: "bg-red-500" },
-    { label: "High",     count: alerts.high,     color: "bg-orange-500" },
-    { label: "Medium",   count: alerts.medium,   color: "bg-yellow-500" },
-    { label: "Low",      count: alerts.low,       color: "bg-blue-500" },
+    { label: "Crítico", count: alerts.critical, color: "bg-red-500" },
+    { label: "Alto",    count: alerts.high,     color: "bg-orange-500" },
+    { label: "Medio",   count: alerts.medium,   color: "bg-yellow-500" },
+    { label: "Bajo",    count: alerts.low,       color: "bg-blue-500" },
   ];
   return (
     <div className="flex gap-2 items-center flex-wrap">
@@ -77,9 +77,9 @@ function MachineStatusBar({ machines }: { machines: OperationsSummary["machines"
         <div className="bg-red-500 transition-all" style={{ width: `${(critical / total) * 100}%` }} />
       </div>
       <div className="flex gap-4 text-xs">
-        <span className="text-green-400">● {healthy} healthy</span>
-        <span className="text-yellow-400">● {warning} warning</span>
-        <span className="text-red-400">● {critical} critical</span>
+        <span className="text-green-400">● {healthy} saludable</span>
+        <span className="text-yellow-400">● {warning} advertencia</span>
+        <span className="text-red-400">● {critical} crítico</span>
       </div>
     </div>
   );
@@ -110,7 +110,7 @@ function HealthScore({ score }: { score: number }) {
           <span className="text-[10px] text-gray-500 uppercase tracking-wider">%</span>
         </div>
       </div>
-      <p className="text-xs text-gray-500 uppercase tracking-wider">Plant Health</p>
+      <p className="text-xs text-gray-500 uppercase tracking-wider">Salud de Planta</p>
     </div>
   );
 }
@@ -139,18 +139,18 @@ export default function DashboardPage() {
       {/* Page header */}
       <div className="flex items-baseline justify-between mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Operations Center</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Real-time plant health &amp; risk overview</p>
+          <h1 className="text-xl font-semibold text-gray-100">Centro de Operaciones</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Estado de planta y exposición al riesgo en tiempo real</p>
         </div>
         {dataUpdatedAt > 0 && (
-          <p className="text-xs text-gray-600">Updated {fmtTs(new Date(dataUpdatedAt).toISOString(), { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
+          <p className="text-xs text-gray-600">Actualizado {fmtTs(new Date(dataUpdatedAt).toISOString(), { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
         )}
       </div>
 
       {isLoading && <Skeleton />}
       {error && (
         <div className="rounded-xl border border-red-800/60 bg-red-950/30 px-5 py-4 text-sm text-red-400 mb-6">
-          Cannot reach backend — make sure the server is running on port 8000.
+          No se puede conectar al backend — asegúrese de que el servidor está corriendo en el puerto 8000.
         </div>
       )}
 
@@ -166,29 +166,29 @@ export default function DashboardPage() {
             {/* KPI tiles */}
             <div className="lg:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4">
               <Tile
-                label="Total Machines"
+                label="Total de Máquinas"
                 value={String(data.machines.total)}
-                sub={`${data.machines.healthy} healthy`}
+                sub={`${data.machines.healthy} saludable`}
                 icon={Activity}
               />
               <Tile
-                label="Open Alerts"
+                label="Alertas Abiertas"
                 value={String(data.alerts.open)}
-                sub={`${data.alerts.new} new`}
+                sub={`${data.alerts.new} nuevas`}
                 color={data.alerts.critical > 0 ? "text-red-400" : data.alerts.open > 0 ? "text-yellow-400" : "text-green-400"}
                 icon={AlertTriangle}
                 pulse={data.alerts.critical > 0}
               />
               <Tile
-                label="Work Orders"
+                label="Órdenes de Trabajo"
                 value={String(data.work_orders.open)}
-                sub={`of ${data.work_orders.total} total`}
+                sub={`de ${data.work_orders.total} en total`}
                 icon={Wrench}
               />
               <Tile
-                label="Risk Exposure"
+                label="Exposición al Riesgo"
                 value={fmt(data.risk_exposure_usd, "currency")}
-                sub="open WO cost"
+                sub="costo de OTs abiertas"
                 color={data.risk_exposure_usd > 5000 ? "text-orange-400" : "text-gray-100"}
                 icon={DollarSign}
               />
@@ -199,23 +199,23 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 space-y-4">
               <h2 className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                <Cpu size={12} /> Fleet Status
+                <Cpu size={12} /> Estado de Flota
               </h2>
               <MachineStatusBar machines={data.machines} />
               <p className="text-xs text-gray-600">
-                Avg failure probability: <span className="text-gray-300 font-semibold">{data.avg_failure_probability_pct}%</span>
+                Prob. media de fallo: <span className="text-gray-300 font-semibold">{data.avg_failure_probability_pct}%</span>
               </p>
             </div>
 
             <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 space-y-4">
               <h2 className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                <AlertTriangle size={12} /> Alert Breakdown
+                <AlertTriangle size={12} /> Desglose de Alertas
               </h2>
               <AlertBar alerts={data.alerts} />
               {data.alerts.open === 0 && (
                 <div className="flex items-center gap-2 text-green-400 text-sm">
                   <CheckCircle2 size={14} />
-                  All clear — no open alerts
+                  Todo en orden — sin alertas abiertas
                 </div>
               )}
             </div>
@@ -227,10 +227,10 @@ export default function DashboardPage() {
               <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-red-400">
-                  {data.machines.critical} machine{data.machines.critical > 1 ? "s" : ""} in critical state
+                  {data.machines.critical} máquina{data.machines.critical > 1 ? "s" : ""} en estado crítico
                 </p>
                 <p className="text-xs text-red-300/60 mt-0.5">
-                  Navigate to Fleet to identify affected assets and take action.
+                  Navegue a Flota para identificar los activos afectados y tomar acción.
                 </p>
               </div>
             </div>
