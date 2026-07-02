@@ -18,6 +18,7 @@ from .observability.correlation import CorrelationIdMiddleware
 from .infra.demo_identity import DemoIdentityMiddleware
 from .api.v2.events import router as events_router
 from .agents.context import set_event_loop as _set_instrumentation_loop
+from .domain.alerting import start_alert_job
 from .ml.explain import load_machine_registry
 from .rag.metrics import InstrumentedRetriever
 from .services.conversation import ConversationStore
@@ -94,7 +95,15 @@ async def lifespan(app: FastAPI):
         await loop.run_in_executor(None, rul_predictor.initialize, MLFLOW_URI, DATA_PATH)
     except Exception as e:
         print(f"[RULPredictor] No se pudo inicializar: {e}. Predicción RUL no estará disponible.")
+
+    # Start background alert evaluation job (runs every 60 s).
+    _alert_task = start_alert_job()
     yield
+    _alert_task.cancel()
+    try:
+        await _alert_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(
