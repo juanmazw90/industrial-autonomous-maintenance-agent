@@ -15,6 +15,7 @@ from .middleware.rate_limiter import RateLimitMiddleware
 from .models import FailurePredictionResponse, IncomingSensorReading, InputQuery
 from .observability.logging import configure_logging
 from .observability.correlation import CorrelationIdMiddleware
+from .observability.audit_middleware import AuditMiddleware
 from .infra.demo_identity import DemoIdentityMiddleware
 from .api.v2.events import router as events_router
 from .agents.context import set_event_loop as _set_instrumentation_loop
@@ -121,6 +122,7 @@ app.add_middleware(
 )
 app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(DemoIdentityMiddleware)
+app.add_middleware(AuditMiddleware)
 
 app.include_router(events_router)
 
