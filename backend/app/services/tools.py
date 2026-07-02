@@ -7,15 +7,25 @@ para que el resultado pueda almacenarse en AMIAState.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from amia_shared.schemas import MACHINE_CONFIGS
+from app.agents.context import get_event_loop
+from app.ml.explain import save_prediction
 from .retrieval import Retriever, RetrievedChunk
 
 if TYPE_CHECKING:
     from .predictor import FailurePredictor
     from .rca_predictor import RCAPredictor
     from .rul_predictor import RULPredictor
+
+
+def _fire_save_prediction(**kwargs) -> None:
+    """Schedule save_prediction coroutine from a thread-pool context."""
+    loop = get_event_loop()
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(save_prediction(**kwargs), loop)
 
 
 def build_search_tool(retriever: Retriever):
@@ -71,7 +81,18 @@ def build_predict_failure_tool(predictor: FailurePredictor):
                 "hint": "Ejecuta train_failure_prediction.py para entrenar el modelo.",
             }
         try:
-            return predictor.predict(machine_id)
+            result = predictor.predict(machine_id)
+            _fire_save_prediction(
+                machine_code=machine_id,
+                model_name="amia-failure-model",
+                model_version=None,
+                prediction=result,
+                probability=result.get("failure_probability"),
+                shap_model=predictor.model,
+                shap_features=predictor._latest_features.get(machine_id.upper()),
+                shap_feature_names=predictor.feature_cols,
+            )
+            return result
         except ValueError as e:
             return {"error": str(e)}
 
@@ -98,7 +119,15 @@ def build_predict_rul_tool(predictor: RULPredictor):
                 "hint": "Ejecuta train_rul.py para entrenar el modelo.",
             }
         try:
-            return predictor.predict(machine_id)
+            result = predictor.predict(machine_id)
+            _fire_save_prediction(
+                machine_code=machine_id,
+                model_name="amia-rul-model",
+                model_version=None,
+                prediction=result,
+                probability=result.get("degradation_fraction"),
+            )
+            return result
         except ValueError as e:
             return {"error": str(e)}
 

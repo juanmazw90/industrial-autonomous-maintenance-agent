@@ -18,6 +18,8 @@ from .observability.correlation import CorrelationIdMiddleware
 from .infra.demo_identity import DemoIdentityMiddleware
 from .api.v2.events import router as events_router
 from .agents.context import set_event_loop as _set_instrumentation_loop
+from .ml.explain import load_machine_registry
+from .rag.metrics import InstrumentedRetriever
 from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
 from .services.predictor import FailurePredictor
@@ -53,7 +55,7 @@ MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{REPO_ROOT / 'mlflow.d
 DATA_PATH  = Path(os.getenv("DATA_PATH", REPO_ROOT / "data/synthetic/sensor_readings.parquet"))
 
 config    = RAGConfig()
-retriever = Retriever(config)
+retriever = InstrumentedRetriever(Retriever(config))
 pipeline  = IngestionPipeline(config)
 predictor     = FailurePredictor()
 rca_predictor = RCAPredictor()
@@ -69,6 +71,9 @@ async def lifespan(app: FastAPI):
     # Register the running loop so instrument_tool can fire DB writes from threads.
     loop = asyncio.get_running_loop()
     _set_instrumentation_loop(loop)
+
+    # Load machine code→UUID mapping for ml/explain.py prediction persistence.
+    await load_machine_registry()
 
     # Inicializar semantic cache (crea colección en Qdrant si no existe)
     try:
