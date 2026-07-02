@@ -18,6 +18,7 @@ from .observability.correlation import CorrelationIdMiddleware
 from .observability.audit_middleware import AuditMiddleware
 from .infra.demo_identity import DemoIdentityMiddleware
 from .api.v2.events import router as events_router
+from .api.v2.config import router as config_router
 from .agents.context import set_event_loop as _set_instrumentation_loop
 from .domain.alerting import start_alert_job
 from .ml.explain import load_machine_registry
@@ -125,6 +126,7 @@ app.add_middleware(DemoIdentityMiddleware)
 app.add_middleware(AuditMiddleware)
 
 app.include_router(events_router)
+app.include_router(config_router)
 
 _RATE_LIMIT      = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
 _RATE_WINDOW     = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
