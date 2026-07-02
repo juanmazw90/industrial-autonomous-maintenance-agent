@@ -161,9 +161,14 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen max-w-3xl mx-auto">
       {/* Header */}
-      <header className="flex-none border-b border-gray-800 px-4 py-3 flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-green-400" />
-        <span className="text-gray-400 text-sm">Agente de Mantenimiento Industrial</span>
+      <header className="flex-none border-b border-gray-800 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-400" />
+          <span className="text-gray-400 text-sm">AMIA — AI Maintenance Agent</span>
+        </div>
+        <a href="/dashboard" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-900/60 px-2.5 py-1 rounded-lg">
+          Platform →
+        </a>
       </header>
 
       {/* Messages */}
