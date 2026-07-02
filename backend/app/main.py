@@ -13,6 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from .graph import get_graph
 from .middleware.rate_limiter import RateLimitMiddleware
 from .models import FailurePredictionResponse, IncomingSensorReading, InputQuery
+from .observability.logging import configure_logging
+from .observability.correlation import CorrelationIdMiddleware
+from .infra.demo_identity import DemoIdentityMiddleware
+from .api.v2.events import router as events_router
 from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
 from .services.predictor import FailurePredictor
@@ -40,6 +44,8 @@ except Exception:
     _LANGFUSE_ENABLED = False
     _langfuse = None
 
+
+configure_logging()
 
 REPO_ROOT  = Path(__file__).resolve().parents[2]
 MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{REPO_ROOT / 'mlflow.db'}")
@@ -95,6 +101,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(DemoIdentityMiddleware)
+
+app.include_router(events_router)
 
 _RATE_LIMIT      = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
 _RATE_WINDOW     = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
