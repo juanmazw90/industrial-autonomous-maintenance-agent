@@ -17,6 +17,7 @@ from .observability.logging import configure_logging
 from .observability.correlation import CorrelationIdMiddleware
 from .infra.demo_identity import DemoIdentityMiddleware
 from .api.v2.events import router as events_router
+from .agents.context import set_event_loop as _set_instrumentation_loop
 from .services.conversation import ConversationStore
 from .services.ingestion import IngestionPipeline, parse_document
 from .services.predictor import FailurePredictor
@@ -65,6 +66,10 @@ sem_cache = SemanticCache(retriever.embedder, retriever.qdrant)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Register the running loop so instrument_tool can fire DB writes from threads.
+    loop = asyncio.get_running_loop()
+    _set_instrumentation_loop(loop)
+
     # Inicializar semantic cache (crea colección en Qdrant si no existe)
     try:
         await sem_cache.initialize()
@@ -72,7 +77,6 @@ async def lifespan(app: FastAPI):
         print(f"[SemanticCache] No se pudo inicializar: {e}")
 
     # Inicializar predictor en thread pool (CPU-bound, ~30s)
-    loop = asyncio.get_event_loop()
     try:
         await loop.run_in_executor(None, predictor.initialize, MLFLOW_URI, DATA_PATH)
     except Exception as e:
@@ -177,6 +181,7 @@ async def process_input(user_input: InputQuery) -> dict:
     )
     try:
         result = await graph.ainvoke({
+            "session_id":           user_input.session_id,
             "query":                user_input.query,
             "conversation_history": history,
             "retrieved_docs":       [],

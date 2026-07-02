@@ -16,6 +16,7 @@ import os
 import anthropic
 from pydantic import BaseModel
 
+from .context import node_usage
 from .state import AMIAState
 
 _client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
@@ -88,6 +89,13 @@ async def supervisor_node(state: AMIAState) -> dict:
         tool_choice={"type": "any"},
         messages=messages,
     )
+
+    # Export token usage so instrument_node can record cost.
+    node_usage.set({
+        "model": "claude-haiku-4-5-20251001",
+        "input_tokens": response.usage.input_tokens,
+        "output_tokens": response.usage.output_tokens,
+    })
 
     for block in response.content:
         if block.type == "tool_use" and block.name == "route_to_agent":
