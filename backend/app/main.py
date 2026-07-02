@@ -9,6 +9,9 @@ load_dotenv()
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse
 
 from .graph import get_graph
 from .middleware.rate_limiter import RateLimitMiddleware
@@ -135,6 +138,20 @@ app.include_router(operations_router)
 app.include_router(agents_router)
 app.include_router(ml_router)
 app.include_router(platform_router)
+
+# Tag legacy v1 routes with HTTP deprecation headers (RFC 8594).
+_V1_PREFIXES = ("/predict/", "/sensors/", "/work-orders", "/evaluate", "/metrics/")
+
+class _DeprecationMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next) -> StarletteResponse:
+        response = await call_next(request)
+        if any(request.url.path.startswith(p) for p in _V1_PREFIXES):
+            response.headers["Deprecation"] = "true"
+            response.headers["Sunset"] = "Sat, 01 Jan 2027 00:00:00 GMT"
+            response.headers["Link"] = '</api/v2>; rel="successor-version"'
+        return response
+
+app.add_middleware(_DeprecationMiddleware)
 
 _RATE_LIMIT      = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
 _RATE_WINDOW     = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))

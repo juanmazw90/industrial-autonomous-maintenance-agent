@@ -279,6 +279,24 @@ export interface AuditEntry {
   created_at: string;
 }
 
+export type WorkOrderStatus = "open" | "assigned" | "in_progress" | "completed";
+export type WorkOrderPriority = "critical" | "high" | "medium" | "low";
+
+export interface WorkOrder {
+  id: string;
+  machine_code: string;
+  machine_name: string;
+  title: string;
+  description: string | null;
+  priority: WorkOrderPriority;
+  status: WorkOrderStatus;
+  assigned_to: string | null;
+  estimated_cost: number | null;
+  alert_id: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 // ── Operations ────────────────────────────────────────────────────────────────
 export const api = {
   operations: {
@@ -348,5 +366,13 @@ export const api = {
   audit: {
     list: (params?: { entity_type?: string; actor_id?: string; limit?: number; offset?: number }) =>
       get<{ total: number; entries: AuditEntry[] }>("/audit", params as Record<string, string | number>),
+  },
+  workOrders: {
+    list: (params?: { status?: string; priority?: string; machine_code?: string; limit?: number; offset?: number }) =>
+      get<{ total: number; work_orders: WorkOrder[] }>("/work-orders", params as Record<string, string | number>),
+    create: (body: { machine_code: string; title: string; description?: string; priority?: string; estimated_cost?: number }) =>
+      post<WorkOrder>("/work-orders", body),
+    update: (id: string, body: { status?: string; assigned_to?: string; estimated_cost?: number }) =>
+      patch<WorkOrder>(`/work-orders/${id}`, body),
   },
 };

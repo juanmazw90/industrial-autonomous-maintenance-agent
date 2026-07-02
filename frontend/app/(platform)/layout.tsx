@@ -13,6 +13,8 @@ import {
   DatabaseZap,
   ClipboardCheck,
   ScrollText,
+  Wrench,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,15 +26,17 @@ const NAV: NavItem[] = [
   { group: "Operations" },
   { href: "/dashboard",  label: "Overview",   icon: LayoutDashboard },
   { href: "/assets",     label: "Fleet",      icon: Cpu },
-  { href: "/alerts",     label: "Alerts",     icon: BellRing },
+  { href: "/alerts",       label: "Alerts",       icon: BellRing },
+  { href: "/work-orders",  label: "Work Orders",  icon: Wrench },
   { group: "AI / ML" },
   { href: "/agents",     label: "AI Agents",  icon: Bot },
   { href: "/models",     label: "ML Models",  icon: FlaskConical },
   { href: "/rag",        label: "RAG",        icon: DatabaseZap },
   { href: "/evaluation", label: "Evaluation", icon: ClipboardCheck },
   { group: "Platform" },
-  { href: "/logs",       label: "Logs",       icon: ScrollText },
-  { href: "/monitoring", label: "Services",   icon: Activity },
+  { href: "/logs",        label: "Logs",       icon: ScrollText },
+  { href: "/monitoring",  label: "Services",   icon: Activity },
+  { href: "/settings",    label: "Settings",   icon: Settings },
 ];
 
 function Sidebar() {
