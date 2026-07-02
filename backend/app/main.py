@@ -19,6 +19,10 @@ from .observability.audit_middleware import AuditMiddleware
 from .infra.demo_identity import DemoIdentityMiddleware
 from .api.v2.events import router as events_router
 from .api.v2.config import router as config_router
+from .api.v2.operations import router as operations_router
+from .api.v2.agents import router as agents_router
+from .api.v2.ml import router as ml_router
+from .api.v2.platform import router as platform_router
 from .agents.context import set_event_loop as _set_instrumentation_loop
 from .domain.alerting import start_alert_job
 from .ml.explain import load_machine_registry
@@ -111,7 +115,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AMIA Backend",
     description="Autonomous Maintenance Intelligence Agent API",
-    version="0.6.0",
+    version="0.7.0",
     lifespan=lifespan,
 )
 
@@ -127,6 +131,10 @@ app.add_middleware(AuditMiddleware)
 
 app.include_router(events_router)
 app.include_router(config_router)
+app.include_router(operations_router)
+app.include_router(agents_router)
+app.include_router(ml_router)
+app.include_router(platform_router)
 
 _RATE_LIMIT      = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
 _RATE_WINDOW     = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
@@ -139,7 +147,7 @@ async def health() -> dict:
     cache_stats = await sem_cache.stats()
     return {
         "status":              "ok",
-        "version":             "0.6.0",
+        "version":             "0.7.0",
         "predictor_ready":     predictor.initialized,
         "rca_predictor_ready": rca_predictor.initialized,
         "rul_predictor_ready": rul_predictor.initialized,
@@ -369,7 +377,7 @@ async def get_kpis() -> dict:
     avg_degr  = round(sum(r["degradation_fraction"] for r in rul_preds) / len(rul_preds) * 100, 1) if rul_preds else None
 
     return {
-        "version":                 "0.6.0",
+        "version":                 "0.7.0",
         "machines_monitored":      len(failure_preds),
         "machines_green":          alert_counts["green"],
         "machines_warning":        alert_counts["yellow"],
