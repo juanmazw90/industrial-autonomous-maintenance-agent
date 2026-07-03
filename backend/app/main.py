@@ -12,9 +12,6 @@ import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import Response as StarletteResponse
 
 from .graph import get_graph
 from .middleware.rate_limiter import RateLimitMiddleware
@@ -145,14 +142,27 @@ app.include_router(platform_router)
 # Tag legacy v1 routes with HTTP deprecation headers (RFC 8594).
 _V1_PREFIXES = ("/predict/", "/sensors/", "/work-orders", "/evaluate", "/metrics/")
 
-class _DeprecationMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next) -> StarletteResponse:
-        response = await call_next(request)
-        if any(request.url.path.startswith(p) for p in _V1_PREFIXES):
-            response.headers["Deprecation"] = "true"
-            response.headers["Sunset"] = "Sat, 01 Jan 2027 00:00:00 GMT"
-            response.headers["Link"] = '</api/v2>; rel="successor-version"'
-        return response
+class _DeprecationMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            if any(path.startswith(p) for p in _V1_PREFIXES):
+                async def _send_with_headers(message):
+                    if message["type"] == "http.response.start":
+                        headers = list(message.get("headers", []))
+                        headers.extend([
+                            (b"deprecation", b"true"),
+                            (b"sunset", b"Sat, 01 Jan 2027 00:00:00 GMT"),
+                            (b"link", b'</api/v2>; rel="successor-version"'),
+                        ])
+                        message = {**message, "headers": headers}
+                    await send(message)
+                await self.app(scope, receive, _send_with_headers)
+                return
+        await self.app(scope, receive, send)
 
 app.add_middleware(_DeprecationMiddleware)
 
@@ -275,11 +285,11 @@ async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
         cached = await sem_cache.get(user_input.query)
         if cached:
             store.append_turn(user_input.session_id, user_input.query, cached["response"])
-            # Send cached text in chunks so the client still gets the streaming effect
+            # Send cached text in small chunks with delay for animation effect
             text = cached["response"]
-            for i in range(0, len(text), 30):
-                yield f"data: {json.dumps({'type': 'token', 'content': text[i:i+30]})}\n\n"
-                await asyncio.sleep(0)
+            for i in range(0, len(text), 6):
+                yield f"data: {json.dumps({'type': 'token', 'content': text[i:i+6]})}\n\n"
+                await asyncio.sleep(0.018)
             yield f"data: {json.dumps({'type': 'done', 'agent_used': cached['agent_used'], 'sources': cached['sources'], 'cached': True, 'session_id': user_input.session_id})}\n\n"
             return
 
@@ -329,10 +339,12 @@ async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
                             agent_used = output["next_agent"]
                         if output.get("sources"):
                             sources = output["sources"]
-                        # Fallback: if no tokens were streamed (e.g. cache bypass), emit full response
+                        # Fallback: LangGraph didn't stream — animate the final response
                         if output.get("final_response") and not accumulated:
                             accumulated = output["final_response"]
-                            yield f"data: {json.dumps({'type': 'token', 'content': accumulated})}\n\n"
+                            for i in range(0, len(accumulated), 6):
+                                yield f"data: {json.dumps({'type': 'token', 'content': accumulated[i:i+6]})}\n\n"
+                                await asyncio.sleep(0.018)
 
         except Exception as e:
             if lf_trace:

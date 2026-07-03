@@ -27,7 +27,7 @@ async function streamMessage(
   sessionId: string,
   onToken: (fullText: string) => void,
 ): Promise<{ agentUsed: string; sources: Source[]; cached: boolean }> {
-  const res = await fetch("/api/process_input/stream", {
+  const res = await fetch("http://localhost:8000/process_input/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, session_id: sessionId }),
@@ -53,20 +53,26 @@ async function streamMessage(
 
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
+
+      // Parse JSON separately so parse errors don't swallow token errors
+      let msg: Record<string, unknown>;
       try {
-        const msg = JSON.parse(line.slice(6));
-        if (msg.type === "token") {
-          fullText += msg.content;
-          onToken(fullText);
-        } else if (msg.type === "done") {
-          agentUsed = msg.agent_used ?? agentUsed;
-          sources   = msg.sources   ?? [];
-          cached    = msg.cached    ?? false;
-        } else if (msg.type === "error") {
-          throw new Error(msg.message);
-        }
+        msg = JSON.parse(line.slice(6));
       } catch {
-        // Ignore malformed SSE lines
+        continue;
+      }
+
+      if (msg.type === "token") {
+        fullText += msg.content as string;
+        onToken(fullText);
+        // Yield to the browser so React can render and paint before the next token
+        await new Promise<void>(resolve => requestAnimationFrame(resolve));
+      } else if (msg.type === "done") {
+        agentUsed = (msg.agent_used as string) ?? agentUsed;
+        sources   = (msg.sources   as Source[]) ?? [];
+        cached    = (msg.cached    as boolean)  ?? false;
+      } else if (msg.type === "error") {
+        throw new Error(msg.message as string);
       }
     }
   }

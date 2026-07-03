@@ -1,33 +1,38 @@
 """
 Rate limiting por IP usando Redis con ventana deslizante de 60 segundos.
 Endpoints limitados: /process_input y /predict/*.
+Pure ASGI implementation — compatible con StreamingResponse.
 """
 
 import time
 
 import redis.asyncio as aioredis
-from fastapi import Request
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 
 _RATE_LIMITED_PREFIXES = ("/process_input", "/predict/")
 _DEFAULT_LIMIT  = 10   # requests
 _DEFAULT_WINDOW = 60   # seconds
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
+class RateLimitMiddleware:
     def __init__(self, app, redis_url: str = "redis://localhost:6379", limit: int = _DEFAULT_LIMIT, window: int = _DEFAULT_WINDOW):
-        super().__init__(app)
-        self._redis   = aioredis.from_url(redis_url, decode_responses=True)
-        self._limit   = limit
-        self._window  = window
+        self.app    = app
+        self._redis = aioredis.from_url(redis_url, decode_responses=True)
+        self._limit  = limit
+        self._window = window
 
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
         if not any(path.startswith(p) for p in _RATE_LIMITED_PREFIXES):
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
-        ip  = request.client.host if request.client else "unknown"
+        client = scope.get("client")
+        ip  = client[0] if client else "unknown"
         key = f"rate:{ip}:{int(time.time()) // self._window}"
 
         try:
@@ -35,12 +40,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if count == 1:
                 await self._redis.expire(key, self._window)
         except Exception:
-            # Si Redis no está disponible, dejamos pasar la request
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
         if count > self._limit:
             retry_after = self._window - (int(time.time()) % self._window)
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=429,
                 content={
                     "detail": f"Demasiadas solicitudes. Límite: {self._limit} por {self._window}s.",
@@ -48,5 +53,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 },
                 headers={"Retry-After": str(retry_after)},
             )
+            await response(scope, receive, send)
+            return
 
-        return await call_next(request)
+        await self.app(scope, receive, send)

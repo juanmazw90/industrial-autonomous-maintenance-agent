@@ -2,20 +2,16 @@
 Etapa 1.4 — Audit middleware.
 
 Intercepts every mutating request (POST / PATCH / DELETE / PUT) and
-writes an audit_log entry with actor (from X-Demo-User / request.state.actor),
+writes an audit_log entry with actor (from X-Demo-User / scope state),
 HTTP action, path (used as entity_type + entity_id), correlation_id and
 a summary diff extracted from the request body.
-
-This middleware runs AFTER CorrelationIdMiddleware so correlation_id is set.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 
 import structlog
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
 
 from app.domain.audit import record
 
@@ -23,7 +19,6 @@ _logger = structlog.get_logger(__name__)
 
 _AUDIT_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
 
-# Paths that should not be audited (read-only or infrastructure).
 _SKIP_PREFIXES = (
     "/health",
     "/metrics",
@@ -34,20 +29,39 @@ _SKIP_PREFIXES = (
 )
 
 
-class AuditMiddleware(BaseHTTPMiddleware):
+class AuditMiddleware:
     """
     Captures mutating requests and records them to audit_log.
-    Body is read once and re-injected so downstream handlers still see it.
+    Pure ASGI implementation — compatible with StreamingResponse.
     """
 
-    async def dispatch(self, request: Request, call_next) -> Response:
-        if request.method not in _AUDIT_METHODS:
-            return await call_next(request)
-        if any(request.url.path.startswith(p) for p in _SKIP_PREFIXES):
-            return await call_next(request)
+    def __init__(self, app):
+        self.app = app
 
-        # Read body once — stash for re-consumption.
-        body_bytes = await request.body()
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "")
+        path = scope.get("path", "")
+
+        if method not in _AUDIT_METHODS or any(path.startswith(p) for p in _SKIP_PREFIXES):
+            await self.app(scope, receive, send)
+            return
+
+        # Drain the receive channel to buffer the full request body.
+        body_bytes = b""
+        more_body = True
+        while more_body:
+            msg = await receive()
+            if msg["type"] == "http.disconnect":
+                await send({"type": "http.response.start", "status": 400, "headers": []})
+                await send({"type": "http.response.body", "body": b""})
+                return
+            body_bytes += msg.get("body", b"")
+            more_body = msg.get("more_body", False)
+
         body_summary: dict = {}
         if body_bytes:
             try:
@@ -57,35 +71,41 @@ class AuditMiddleware(BaseHTTPMiddleware):
             except Exception:
                 body_summary = {"raw_length": len(body_bytes)}
 
-        # Re-inject body so the actual route handler can read it.
-        async def receive():
-            return {"type": "http.request", "body": body_bytes, "more_body": False}
+        # Replay receive: return buffered body once, then forward to the real
+        # receive so StreamingResponse's disconnect listener can block correctly.
+        _consumed = False
 
-        request._receive = receive  # type: ignore[attr-defined]
+        async def replay_receive():
+            nonlocal _consumed
+            if not _consumed:
+                _consumed = True
+                return {"type": "http.request", "body": body_bytes, "more_body": False}
+            return await receive()
 
-        response = await call_next(request)
+        # Intercept send to record audit on 2xx responses.
+        async def audit_send(message):
+            if message["type"] == "http.response.start":
+                status_code = message.get("status", 0)
+                if 200 <= status_code < 300:
+                    state = scope.get("state", {})
+                    actor = state.get("actor", None)
+                    actor_id = getattr(actor, "id", None)
+                    actor_type = "user" if actor_id else "system"
+                    correlation_id = state.get("correlation_id", None)
 
-        # Only audit successful mutations (2xx).
-        if 200 <= response.status_code < 300:
-            actor = getattr(getattr(request, "state", None), "actor", None)
-            actor_id = getattr(actor, "id", None)
-            actor_type = "user" if actor_id else "system"
+                    path_parts = path.strip("/").split("/")
+                    entity_type = path_parts[-2] if len(path_parts) >= 2 else path_parts[0]
+                    entity_id = path_parts[-1] if len(path_parts) >= 2 else "unknown"
 
-            correlation_id = getattr(getattr(request, "state", None), "correlation_id", None)
+                    asyncio.create_task(record(
+                        action=method.lower(),
+                        entity_type=entity_type,
+                        entity_id=entity_id,
+                        actor_id=actor_id,
+                        actor_type=actor_type,
+                        diff={"method": method, "path": path, "body": body_summary},
+                        correlation_id=correlation_id,
+                    ))
+            await send(message)
 
-            path_parts = request.url.path.strip("/").split("/")
-            entity_type = path_parts[-2] if len(path_parts) >= 2 else path_parts[0]
-            entity_id = path_parts[-1] if len(path_parts) >= 2 else "unknown"
-
-            import asyncio
-            asyncio.create_task(record(
-                action=request.method.lower(),
-                entity_type=entity_type,
-                entity_id=entity_id,
-                actor_id=actor_id,
-                actor_type=actor_type,
-                diff={"method": request.method, "path": request.url.path, "body": body_summary},
-                correlation_id=correlation_id,
-            ))
-
-        return response
+        await self.app(scope, replay_receive, audit_send)

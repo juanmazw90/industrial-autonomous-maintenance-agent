@@ -7,10 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from fastapi import Request
 from sqlalchemy import select
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
 
 from app.infra.db.base import AsyncSessionLocal
 from app.infra.db.models import DemoUser
@@ -35,21 +32,28 @@ DEMO_ROLES = (
 )
 
 
-class DemoIdentityMiddleware(BaseHTTPMiddleware):
-    """Inyecta request.state.actor a partir del header X-Demo-User."""
+class DemoIdentityMiddleware:
+    """Inyecta scope['state']['actor'] a partir del header X-Demo-User."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
-        user_id = request.headers.get("X-Demo-User")
-        if user_id:
-            async with AsyncSessionLocal() as session:
-                result = await session.execute(
-                    select(DemoUser).where(DemoUser.id == user_id)
-                )
-                user = result.scalar_one_or_none()
-            if user:
-                request.state.actor = Actor(id=user.id, name=user.name, role=user.role)
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            raw_headers = {k.lower(): v for k, v in scope.get("headers", [])}
+            user_id_bytes = raw_headers.get(b"x-demo-user", b"")
+            user_id = user_id_bytes.decode() if user_id_bytes else None
+
+            if user_id:
+                async with AsyncSessionLocal() as session:
+                    result = await session.execute(
+                        select(DemoUser).where(DemoUser.id == user_id)
+                    )
+                    user = result.scalar_one_or_none()
+                actor = Actor(id=user.id, name=user.name, role=user.role) if user else SYSTEM_ACTOR
             else:
-                request.state.actor = SYSTEM_ACTOR
-        else:
-            request.state.actor = SYSTEM_ACTOR
-        return await call_next(request)
+                actor = SYSTEM_ACTOR
+
+            scope.setdefault("state", {})["actor"] = actor
+
+        await self.app(scope, receive, send)
