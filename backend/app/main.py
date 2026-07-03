@@ -6,9 +6,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
+import json
+
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
@@ -260,6 +263,96 @@ async def process_input(user_input: InputQuery) -> dict:
         "session_id": user_input.session_id,
         "cached":     False,
     }
+
+
+@app.post("/process_input/stream")
+async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
+    """Server-Sent Events endpoint — streams synthesizer tokens as they are generated."""
+    history = store.get_history(user_input.session_id)
+
+    async def event_gen():
+        # ── Semantic cache hit ────────────────────────────────────────────────
+        cached = await sem_cache.get(user_input.query)
+        if cached:
+            store.append_turn(user_input.session_id, user_input.query, cached["response"])
+            # Send cached text in chunks so the client still gets the streaming effect
+            text = cached["response"]
+            for i in range(0, len(text), 30):
+                yield f"data: {json.dumps({'type': 'token', 'content': text[i:i+30]})}\n\n"
+                await asyncio.sleep(0)
+            yield f"data: {json.dumps({'type': 'done', 'agent_used': cached['agent_used'], 'sources': cached['sources'], 'cached': True, 'session_id': user_input.session_id})}\n\n"
+            return
+
+        # ── LangGraph astream_events ──────────────────────────────────────────
+        lf_trace = (
+            _langfuse.trace(name="amia.process_input.stream", input={"query": user_input.query, "session_id": user_input.session_id})
+            if _langfuse else None
+        )
+
+        accumulated = ""
+        agent_used  = "synthesizer"
+        sources: list = []
+
+        try:
+            async for event in graph.astream_events(
+                {
+                    "session_id":           user_input.session_id,
+                    "query":                user_input.query,
+                    "conversation_history": history,
+                    "retrieved_docs":       [],
+                    "sensor_analysis":      None,
+                    "rul_prediction":       None,
+                    "economic_impact":      None,
+                    "work_order":           None,
+                    "next_agent":           "",
+                    "final_response":       "",
+                    "sources":              [],
+                },
+                version="v2",
+            ):
+                kind = event["event"]
+
+                if kind == "on_chat_model_stream":
+                    # Only stream tokens produced by the synthesizer node
+                    node = event.get("metadata", {}).get("langgraph_node", "")
+                    if node == "synthesizer":
+                        chunk = event["data"]["chunk"]
+                        content = chunk.content if hasattr(chunk, "content") else ""
+                        if content:
+                            accumulated += content
+                            yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
+
+                elif kind == "on_chain_end":
+                    output = event.get("data", {}).get("output", {})
+                    if isinstance(output, dict):
+                        if output.get("next_agent"):
+                            agent_used = output["next_agent"]
+                        if output.get("sources"):
+                            sources = output["sources"]
+                        # Fallback: if no tokens were streamed (e.g. cache bypass), emit full response
+                        if output.get("final_response") and not accumulated:
+                            accumulated = output["final_response"]
+                            yield f"data: {json.dumps({'type': 'token', 'content': accumulated})}\n\n"
+
+        except Exception as e:
+            if lf_trace:
+                lf_trace.update(level="ERROR", status_message=str(e))
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            return
+
+        store.append_turn(user_input.session_id, user_input.query, accumulated)
+        await sem_cache.set(user_input.query, accumulated, sources, agent_used)
+
+        if lf_trace:
+            lf_trace.update(output={"agent_used": agent_used, "response": accumulated[:500]})
+
+        yield f"data: {json.dumps({'type': 'done', 'agent_used': agent_used, 'sources': sources, 'cached': False, 'session_id': user_input.session_id})}\n\n"
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/predict/failure", response_model=FailurePredictionResponse)

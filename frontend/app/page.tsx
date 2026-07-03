@@ -17,23 +17,61 @@ interface Message {
   content: string;
   sources?: Source[];
   agentUsed?: string;
+  streaming?: boolean;
 }
 
-// ── API ────────────────────────────────────────────────────────────────────
+// ── Streaming fetch ────────────────────────────────────────────────────────
 
-async function sendMessage(query: string, sessionId: string) {
-  const res = await fetch("/api/process_input", {
+async function streamMessage(
+  query: string,
+  sessionId: string,
+  onToken: (fullText: string) => void,
+): Promise<{ agentUsed: string; sources: Source[]; cached: boolean }> {
+  const res = await fetch("/api/process_input/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, session_id: sessionId }),
   });
-  if (!res.ok) throw new Error(`Error ${res.status}`);
-  return res.json() as Promise<{
-    response: string;
-    sources: Source[];
-    agent_used: string;
-    session_id: string;
-  }>;
+
+  if (!res.ok || !res.body) throw new Error(`Error ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+  let agentUsed = "synthesizer";
+  let sources: Source[] = [];
+  let cached = false;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        const msg = JSON.parse(line.slice(6));
+        if (msg.type === "token") {
+          fullText += msg.content;
+          onToken(fullText);
+        } else if (msg.type === "done") {
+          agentUsed = msg.agent_used ?? agentUsed;
+          sources   = msg.sources   ?? [];
+          cached    = msg.cached    ?? false;
+        } else if (msg.type === "error") {
+          throw new Error(msg.message);
+        }
+      } catch {
+        // Ignore malformed SSE lines
+      }
+    }
+  }
+
+  return { agentUsed, sources, cached };
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -50,9 +88,7 @@ function SourceList({ sources }: { sources: Source[] }) {
           <li key={s.index}>
             [{s.index}] {s.source}
             {s.page ? ` · p.${s.page}` : ""}
-            <span className="ml-1 opacity-60">
-              (score {s.rerank_score.toFixed(2)})
-            </span>
+            <span className="ml-1 opacity-60">(score {s.rerank_score.toFixed(2)})</span>
           </li>
         ))}
       </ul>
@@ -60,18 +96,27 @@ function SourceList({ sources }: { sources: Source[] }) {
   );
 }
 
-function AgentBadge({ agent }: { agent: string }) {
+function AgentBadge({ agent, cached }: { agent: string; cached?: boolean }) {
+  if (cached) {
+    return (
+      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-800/80 text-gray-500">
+        caché
+      </span>
+    );
+  }
   const isRag = agent === "doc_expert";
   return (
-    <span
-      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-        isRag
-          ? "bg-blue-900/60 text-blue-300"
-          : "bg-gray-800 text-gray-400"
-      }`}
-    >
-      {isRag ? "RAG" : "directo"}
+    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+      isRag ? "bg-blue-900/60 text-blue-300" : "bg-gray-800 text-gray-400"
+    }`}>
+      {isRag ? "RAG" : agent}
     </span>
+  );
+}
+
+function StreamingCursor() {
+  return (
+    <span className="inline-block w-[2px] h-[1em] bg-blue-400 ml-0.5 align-text-bottom animate-pulse" />
   );
 }
 
@@ -90,21 +135,34 @@ function ChatMessage({ msg }: { msg: Message }) {
     <div className="flex justify-start">
       <div className="max-w-[80%]">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-            AMIA
-          </span>
-          {msg.agentUsed && <AgentBadge agent={msg.agentUsed} />}
+          <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">AMIA</span>
+          {msg.agentUsed && !msg.streaming && (
+            <AgentBadge agent={msg.agentUsed} />
+          )}
         </div>
         <div className="bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-3 text-sm prose prose-invert prose-sm max-w-none">
-          <ReactMarkdown>{msg.content}</ReactMarkdown>
+          {msg.streaming && !msg.content ? (
+            <span className="flex gap-1 items-center text-gray-500 text-sm">
+              <span className="animate-bounce" style={{ animationDelay: "0ms" }}>·</span>
+              <span className="animate-bounce" style={{ animationDelay: "150ms" }}>·</span>
+              <span className="animate-bounce" style={{ animationDelay: "300ms" }}>·</span>
+            </span>
+          ) : (
+            <>
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+              {msg.streaming && <StreamingCursor />}
+            </>
+          )}
         </div>
-        {msg.sources && <SourceList sources={msg.sources} />}
+        {!msg.streaming && msg.sources && <SourceList sources={msg.sources} />}
       </div>
     </div>
   );
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────
+
+const STREAMING_ID = "__streaming__";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
@@ -114,20 +172,19 @@ export default function ChatPage() {
         "Hola. Soy AMIA, tu agente de mantenimiento industrial. Puedo responder preguntas sobre manuales, procedimientos y diagnóstico de equipos. ¿En qué puedo ayudarte?",
     },
   ]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [input, setInput]       = useState("");
+  const [loading, setLoading]   = useState(false);
   const [sessionId, setSessionId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [error, setError]       = useState<string | null>(null);
+  const bottomRef               = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Generate session ID client-side only to avoid SSR/hydration mismatch
     setSessionId(crypto.randomUUID());
   }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages]);
 
   async function handleSend() {
     const query = input.trim();
@@ -135,21 +192,39 @@ export default function ChatPage() {
 
     setInput("");
     setError(null);
-    setMessages((prev) => [...prev, { role: "user", content: query }]);
     setLoading(true);
 
+    // Add user message + empty streaming placeholder
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: query },
+      { role: "assistant", content: "", streaming: true },
+    ]);
+
     try {
-      const data = await sendMessage(query, sessionId);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.response,
-          sources: data.sources,
-          agentUsed: data.agent_used,
+      const { agentUsed, sources, cached } = await streamMessage(
+        query,
+        sessionId,
+        (fullText) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.streaming ? { ...m, content: fullText } : m
+            )
+          );
         },
-      ]);
+      );
+
+      // Finalize: replace streaming placeholder with completed message
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.streaming
+            ? { role: "assistant", content: m.content, sources, agentUsed, streaming: false }
+            : m
+        )
+      );
     } catch (err) {
+      // Remove streaming placeholder on error
+      setMessages((prev) => prev.filter((m) => !m.streaming));
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setLoading(false);
@@ -169,9 +244,12 @@ export default function ChatPage() {
       <header className="flex-none border-b border-gray-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-green-400" />
-          <span className="text-gray-400 text-sm">AMIA — AI Maintenance Agent</span>
+          <span className="text-gray-400 text-sm">AMIA — Agente de Mantenimiento Industrial</span>
         </div>
-        <a href="/dashboard" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-900/60 px-2.5 py-1 rounded-lg">
+        <a
+          href="/dashboard"
+          className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-900/60 px-2.5 py-1 rounded-lg"
+        >
           Plataforma →
         </a>
       </header>
@@ -182,22 +260,8 @@ export default function ChatPage() {
           <ChatMessage key={i} msg={msg} />
         ))}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-3">
-              <span className="flex gap-1 items-center text-gray-400 text-sm">
-                <span className="animate-bounce delay-0">·</span>
-                <span className="animate-bounce delay-150">·</span>
-                <span className="animate-bounce delay-300">·</span>
-              </span>
-            </div>
-          </div>
-        )}
-
         {error && (
-          <div className="text-red-400 text-sm text-center">
-            {error}
-          </div>
+          <div className="text-red-400 text-sm text-center">{error}</div>
         )}
 
         <div ref={bottomRef} />
@@ -208,7 +272,7 @@ export default function ChatPage() {
         <div className="flex gap-2 items-end">
           <textarea
             className="flex-1 bg-gray-800 text-gray-100 rounded-xl px-3 py-2.5 text-sm resize-none outline-none focus:ring-1 focus:ring-blue-600 placeholder-gray-500"
-            placeholder="Escribe tu pregunta... (Enter para enviar)"
+            placeholder="Escribe tu pregunta… (Enter para enviar)"
             rows={2}
             value={input}
             onChange={(e) => setInput(e.target.value)}

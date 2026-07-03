@@ -15,6 +15,7 @@ import {
   ScrollText,
   Wrench,
   Settings,
+  GitCommitHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,8 @@ const NAV: NavItem[] = [
   { href: "/dashboard",  label: "Visión General",      icon: LayoutDashboard },
   { href: "/assets",     label: "Flota",               icon: Cpu },
   { href: "/alerts",       label: "Alertas",           icon: BellRing },
-  { href: "/work-orders",  label: "Órdenes de Trabajo", icon: Wrench },
+  { href: "/work-orders",  label: "Órdenes de Trabajo",   icon: Wrench },
+  { href: "/timeline",     label: "Línea de Tiempo",      icon: GitCommitHorizontal },
   { group: "IA / ML" },
   { href: "/agents",     label: "Agentes IA",  icon: Bot },
   { href: "/models",     label: "Modelos ML",  icon: FlaskConical },

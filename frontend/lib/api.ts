@@ -279,6 +279,17 @@ export interface AuditEntry {
   created_at: string;
 }
 
+export interface GlobalTimelineEvent {
+  id: string;
+  ts: string;
+  kind: string;
+  title: string;
+  payload: Record<string, unknown> | null;
+  correlation_id: string | null;
+  machine_code: string;
+  machine_name: string;
+}
+
 export type WorkOrderStatus = "open" | "assigned" | "in_progress" | "completed";
 export type WorkOrderPriority = "critical" | "high" | "medium" | "low";
 
@@ -366,6 +377,13 @@ export const api = {
   audit: {
     list: (params?: { entity_type?: string; actor_id?: string; limit?: number; offset?: number }) =>
       get<{ total: number; entries: AuditEntry[] }>("/audit", params as Record<string, string | number>),
+  },
+  timeline: {
+    list: (params?: { kind?: string; machine_code?: string; limit?: number; offset?: number }) =>
+      get<{ total: number; limit: number; offset: number; events: GlobalTimelineEvent[] }>(
+        "/timeline",
+        params as Record<string, string | number>
+      ),
   },
   workOrders: {
     list: (params?: { status?: string; priority?: string; machine_code?: string; limit?: number; offset?: number }) =>

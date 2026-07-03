@@ -253,6 +253,54 @@ async def get_asset(code: str) -> dict[str, Any]:
     }
 
 
+@router.get("/timeline")
+async def get_global_timeline(
+    kind: str | None = Query(None, description="Event kind filter"),
+    machine_code: str | None = Query(None, description="Filter by machine code"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> dict[str, Any]:
+    """Cross-plant timeline: all events from all machines, newest first."""
+    async with AsyncSessionLocal() as db:
+        q = (
+            select(TimelineEvent, Machine)
+            .join(Machine, TimelineEvent.machine_id == Machine.id)
+            .order_by(TimelineEvent.ts.desc())
+        )
+        count_q = select(func.count(TimelineEvent.id))
+
+        if kind:
+            q = q.where(TimelineEvent.kind == kind)
+            count_q = count_q.where(TimelineEvent.kind == kind)
+        if machine_code:
+            q = q.where(Machine.code == machine_code.upper())
+            count_q = count_q.join(Machine, TimelineEvent.machine_id == Machine.id).where(
+                Machine.code == machine_code.upper()
+            )
+
+        total = (await db.execute(count_q)).scalar() or 0
+        rows = (await db.execute(q.limit(limit).offset(offset))).all()
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "events": [
+            {
+                "id": e.id,
+                "ts": e.ts.isoformat(),
+                "kind": e.kind,
+                "title": e.title,
+                "payload": e.payload,
+                "correlation_id": e.correlation_id,
+                "machine_code": m.code,
+                "machine_name": m.name,
+            }
+            for e, m in rows
+        ],
+    }
+
+
 @router.get("/assets/{code}/timeline")
 async def get_asset_timeline(
     code: str,
