@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api, type OperationsSummary } from "@/lib/api";
+import { api, type OperationsSummary, type RULPrediction } from "@/lib/api";
 import { fmt, fmtTs } from "@/lib/utils";
 import {
   Activity,
@@ -10,7 +10,17 @@ import {
   TrendingUp,
   Wrench,
   DollarSign,
+  Timer,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 // ── KPI tile ──────────────────────────────────────────────────────────────────
 
@@ -111,6 +121,111 @@ function HealthScore({ score }: { score: number }) {
         </div>
       </div>
       <p className="text-xs text-gray-500 uppercase tracking-wider">Salud de Planta</p>
+    </div>
+  );
+}
+
+// ── RUL Section ───────────────────────────────────────────────────────────────
+
+const URGENCY_COLOR: Record<RULPrediction["urgency_level"], string> = {
+  critical: "#ef4444",
+  warning:  "#eab308",
+  normal:   "#22c55e",
+};
+
+const URGENCY_LABEL: Record<RULPrediction["urgency_level"], string> = {
+  critical: "Crítico",
+  warning:  "Advertencia",
+  normal:   "Normal",
+};
+
+function RULTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: RULPrediction }> }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs space-y-1">
+      <p className="font-semibold text-gray-200">{d.machine_id}</p>
+      <p className="text-gray-400">Horas restantes: <span className="text-gray-100 font-semibold">{d.hours_remaining.toFixed(0)} h</span></p>
+      <p className="text-gray-400">Degradación: <span className="text-gray-100 font-semibold">{(d.degradation_fraction * 100).toFixed(0)}%</span></p>
+      <p className="text-gray-400">Confianza: <span className="text-gray-100 font-semibold">{(d.confidence * 100).toFixed(0)}%</span></p>
+      <p style={{ color: URGENCY_COLOR[d.urgency_level] }}>{URGENCY_LABEL[d.urgency_level]}</p>
+    </div>
+  );
+}
+
+function RULSection() {
+  const { data, isLoading, error } = useQuery<RULPrediction[]>({
+    queryKey: ["rul-all"],
+    queryFn:  api.rul.all,
+    refetchInterval: 30_000,
+  });
+
+  const critical = data?.filter((d) => d.urgency_level === "critical").length ?? 0;
+
+  return (
+    <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-2">
+          <Timer size={12} /> Vida Útil Restante (RUL)
+        </h2>
+        {data && critical > 0 && (
+          <span className="text-[10px] font-semibold text-red-400 border border-red-800/60 rounded px-1.5 py-0.5">
+            {critical} crítica{critical > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {isLoading && (
+        <div className="h-32 rounded-lg bg-gray-800/40 animate-pulse" />
+      )}
+      {error && (
+        <p className="text-xs text-gray-600">Predictor RUL no disponible — entrena el modelo primero.</p>
+      )}
+
+      {data && data.length > 0 && (
+        <>
+          <ResponsiveContainer width="100%" height={data.length * 36 + 8}>
+            <BarChart
+              layout="vertical"
+              data={data}
+              margin={{ top: 0, right: 24, left: 8, bottom: 0 }}
+              barSize={14}
+            >
+              <XAxis
+                type="number"
+                domain={[0, "dataMax"]}
+                tickFormatter={(v: number) => `${v}h`}
+                tick={{ fill: "#6b7280", fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="machine_id"
+                width={72}
+                tick={{ fill: "#9ca3af", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip content={<RULTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+              <Bar dataKey="hours_remaining" radius={[0, 4, 4, 0]}>
+                {data.map((entry) => (
+                  <Cell key={entry.machine_id} fill={URGENCY_COLOR[entry.urgency_level]} opacity={0.85} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+
+          <div className="flex gap-4 text-[10px] text-gray-500">
+            {(["critical", "warning", "normal"] as const).map((u) => (
+              <span key={u} className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: URGENCY_COLOR[u] }} />
+                {URGENCY_LABEL[u]}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -237,6 +352,9 @@ export default function DashboardPage() {
           )}
         </>
       )}
+
+      {/* Row 3: RUL */}
+      <RULSection />
     </div>
   );
 }

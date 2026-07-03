@@ -279,6 +279,15 @@ export interface AuditEntry {
   created_at: string;
 }
 
+export interface RULPrediction {
+  machine_id: string;
+  hours_remaining: number;
+  degradation_fraction: number;
+  urgency_level: "critical" | "warning" | "normal";
+  confidence: number;
+  as_of_timestamp: string;
+}
+
 export interface GlobalTimelineEvent {
   id: string;
   ts: string;
@@ -377,6 +386,13 @@ export const api = {
   audit: {
     list: (params?: { entity_type?: string; actor_id?: string; limit?: number; offset?: number }) =>
       get<{ total: number; entries: AuditEntry[] }>("/audit", params as Record<string, string | number>),
+  },
+  rul: {
+    all: (): Promise<RULPrediction[]> =>
+      fetch("/api/predict/rul/all", { cache: "no-store" }).then((r) => {
+        if (!r.ok) throw new Error(`RUL all → ${r.status}`);
+        return r.json();
+      }),
   },
   timeline: {
     list: (params?: { kind?: string; machine_code?: string; limit?: number; offset?: number }) =>

@@ -16,6 +16,7 @@ import {
   Wrench,
   Settings,
   GitCommitHorizontal,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,8 +37,9 @@ const NAV: NavItem[] = [
   { href: "/rag",        label: "RAG",         icon: DatabaseZap },
   { href: "/evaluation", label: "Evaluación",  icon: ClipboardCheck },
   { group: "Plataforma" },
-  { href: "/logs",        label: "Registros",  icon: ScrollText },
-  { href: "/monitoring",  label: "Servicios",  icon: Activity },
+  { href: "/logs",        label: "Registros",    icon: ScrollText },
+  { href: "/audit",       label: "Auditoría",    icon: ShieldCheck },
+  { href: "/monitoring",  label: "Servicios",    icon: Activity },
   { href: "/settings",    label: "Configuración", icon: Settings },
 ];
 

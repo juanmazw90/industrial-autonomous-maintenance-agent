@@ -66,7 +66,7 @@ async function streamMessage(
         fullText += msg.content as string;
         onToken(fullText);
         // Yield to the browser so React can render and paint before the next token
-        await new Promise<void>(resolve => requestAnimationFrame(resolve));
+        await new Promise<void>(resolve => { requestAnimationFrame(() => resolve()); });
       } else if (msg.type === "done") {
         agentUsed = (msg.agent_used as string) ?? agentUsed;
         sources   = (msg.sources   as Source[]) ?? [];
