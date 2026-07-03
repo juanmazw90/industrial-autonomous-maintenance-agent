@@ -1,0 +1,287 @@
+{
+  "version": "1.0",
+  "created": "2026-07-03",
+  "description": "Dataset dorado para evaluación LLM-as-judge del agente AMIA. 20 preguntas de referencia que cubren RAG/documentación, análisis de sensores, RUL, impacto económico y consultas operativas generales.",
+  "machines": ["PUMP-001", "PUMP-002", "MOTOR-001", "MOTOR-002", "COMP-001"],
+  "agent_nodes": ["doc_expert", "sensor_analyst", "rul_analyst", "economic_analyst", "work_order_creator", "synthesizer"],
+  "questions": [
+    {
+      "id": "q001",
+      "query": "¿Cuál es el procedimiento de mantenimiento preventivo para una bomba centrífuga?",
+      "category": "mantenimiento_preventivo",
+      "agent_expected": "doc_expert",
+      "reference_points": [
+        "revisión de rodamientos",
+        "lubricación o cambio de aceite",
+        "inspección de sellos mecánicos",
+        "verificación de alineamiento",
+        "medición de vibración"
+      ],
+      "notes": "Debe citar documentación técnica o manual. Respuesta debe incluir al menos 3 pasos específicos."
+    },
+    {
+      "id": "q002",
+      "query": "¿Cuáles son los síntomas típicos de cavitación en una bomba centrífuga y cómo se detectan?",
+      "category": "modos_de_fallo",
+      "agent_expected": "doc_expert",
+      "reference_points": [
+        "ruido o crepitación",
+        "vibración anormal",
+        "caída de presión o caudal",
+        "erosión del impulsor",
+        "temperatura"
+      ],
+      "notes": "Pregunta de diagnóstico documental. La respuesta debe mencionar síntomas físicos observables y métodos de detección."
+    },
+    {
+      "id": "q003",
+      "query": "¿Qué indica una vibración de rodamiento elevada en un motor de inducción y cuáles son las causas más frecuentes?",
+      "category": "diagnostico",
+      "agent_expected": "doc_expert",
+      "reference_points": [
+        "desbalance",
+        "desalineamiento",
+        "desgaste de rodamiento",
+        "resonancia",
+        "valor límite ISO 10816"
+      ],
+      "notes": "Respuesta debe mencionar causas raíz y umbrales normativos de referencia."
+    },
+    {
+      "id": "q004",
+      "query": "¿Cuál es el intervalo de inspección recomendado para los rodamientos de un compresor de tornillo?",
+      "category": "plan_mantenimiento",
+      "agent_expected": "doc_expert",
+      "reference_points": [
+        "horas de operación",
+        "inspección visual",
+        "análisis de aceite o lubricante",
+        "temperatura",
+        "vibración"
+      ],
+      "notes": "Debe dar un intervalo concreto (horas o meses) y mencionar los criterios de inspección."
+    },
+    {
+      "id": "q005",
+      "query": "¿Cuáles son los modos de fallo más comunes en motores de inducción de baja tensión?",
+      "category": "modos_de_fallo",
+      "agent_expected": "doc_expert",
+      "reference_points": [
+        "fallo de rodamientos",
+        "sobrecalentamiento",
+        "fallo eléctrico del bobinado",
+        "desalineamiento",
+        "humedad o contaminación"
+      ],
+      "notes": "Respuesta debe listar al menos 4 modos de fallo distintos con una breve descripción de cada uno."
+    },
+    {
+      "id": "q006",
+      "query": "¿Cómo se realiza el procedimiento de alineación de un acoplamiento entre motor y bomba?",
+      "category": "mantenimiento_preventivo",
+      "agent_expected": "doc_expert",
+      "reference_points": [
+        "alineación angular",
+        "alineación paralela",
+        "reloj comparador o laser",
+        "tolerancias admisibles",
+        "torque de apriete"
+      ],
+      "notes": "Debe describir el procedimiento en pasos y mencionar la herramienta de medición utilizada."
+    },
+    {
+      "id": "q007",
+      "query": "La PUMP-001 muestra una vibración de rodamiento de 4.2 mm/s cuando el nominal es 1.2 mm/s. ¿Cuál es el riesgo de fallo y qué recomiendas?",
+      "category": "analisis_sensor",
+      "agent_expected": "sensor_analyst",
+      "reference_points": [
+        "vibración por encima del límite nominal",
+        "riesgo elevado o crítico",
+        "desgaste de rodamiento",
+        "programar inspección o intervención",
+        "PUMP-001"
+      ],
+      "notes": "La vibración es 3.5x el nominal (1.2 mm/s). El agente debe identificar el riesgo como alto o crítico y recomendar acción inmediata."
+    },
+    {
+      "id": "q008",
+      "query": "MOTOR-001 tiene temperatura de rodamiento de 74°C cuando el nominal es 52°C. ¿Qué está ocurriendo y cuál es la probabilidad de fallo?",
+      "category": "analisis_sensor",
+      "agent_expected": "sensor_analyst",
+      "reference_points": [
+        "temperatura elevada",
+        "42% sobre el nominal",
+        "lubricación insuficiente o rodamiento desgastado",
+        "probabilidad de fallo",
+        "MOTOR-001"
+      ],
+      "notes": "La temperatura es 42% superior al nominal. Debe cuantificar el riesgo y sugerir causa raíz."
+    },
+    {
+      "id": "q009",
+      "query": "¿Cuál es la probabilidad de fallo de COMP-001 en las próximas 24 horas según los sensores actuales?",
+      "category": "prediccion_fallo",
+      "agent_expected": "sensor_analyst",
+      "reference_points": [
+        "probabilidad",
+        "COMP-001",
+        "sensores",
+        "umbral de alerta",
+        "recomendación de acción"
+      ],
+      "notes": "Debe dar una probabilidad numérica o rango, identificar qué variables contribuyen más y recomendar acción."
+    },
+    {
+      "id": "q010",
+      "query": "La corriente de MOTOR-002 está al 145% del valor nominal desde hace 2 horas. ¿Qué puede estar causando esto?",
+      "category": "analisis_sensor",
+      "agent_expected": "sensor_analyst",
+      "reference_points": [
+        "sobrecarga mecánica",
+        "atasco o bloqueo",
+        "fallo eléctrico",
+        "temperatura en aumento",
+        "riesgo de quema de bobinado"
+      ],
+      "notes": "Corriente al 145% del nominal es una anomalía severa. La respuesta debe indicar varias causas posibles y el riesgo asociado."
+    },
+    {
+      "id": "q011",
+      "query": "¿Cuántas horas de vida útil le quedan a la PUMP-001 según el modelo de predicción RUL?",
+      "category": "rul",
+      "agent_expected": "rul_analyst",
+      "reference_points": [
+        "horas restantes",
+        "PUMP-001",
+        "nivel de degradación",
+        "urgencia",
+        "confianza del modelo"
+      ],
+      "notes": "Debe dar horas_remaining, degradation_fraction y urgency_level. Si el predictor no está disponible, debe indicarlo claramente."
+    },
+    {
+      "id": "q012",
+      "query": "¿Qué máquina de la planta tiene la menor vida útil restante actualmente?",
+      "category": "rul",
+      "agent_expected": "rul_analyst",
+      "reference_points": [
+        "máquina con menor RUL",
+        "horas restantes",
+        "urgency_level critical o warning",
+        "degradación"
+      ],
+      "notes": "Debe comparar todas las máquinas y nombrar la que tiene el RUL más bajo con sus valores."
+    },
+    {
+      "id": "q013",
+      "query": "¿Cuál es el porcentaje de degradación acumulada de MOTOR-001 y cuándo se estima que necesitará intervención?",
+      "category": "rul",
+      "agent_expected": "rul_analyst",
+      "reference_points": [
+        "degradation_fraction",
+        "MOTOR-001",
+        "horas restantes",
+        "fecha estimada de intervención"
+      ],
+      "notes": "Debe convertir horas_remaining a fecha concreta y expresar la degradación como porcentaje."
+    },
+    {
+      "id": "q014",
+      "query": "Si la PUMP-002 falla de forma no planificada, ¿cuál sería el costo económico estimado de la reparación y el tiempo de inactividad?",
+      "category": "impacto_economico",
+      "agent_expected": "economic_analyst",
+      "reference_points": [
+        "costo de reparación",
+        "costo de parada",
+        "producción perdida",
+        "PUMP-002",
+        "impacto total en USD o MXN"
+      ],
+      "notes": "Debe desglosar el impacto entre costo de reparación y costo de parada de producción."
+    },
+    {
+      "id": "q015",
+      "query": "¿Cuánto me ahorraría hacer mantenimiento preventivo en COMP-001 esta semana en lugar de esperar a que falle?",
+      "category": "impacto_economico",
+      "agent_expected": "economic_analyst",
+      "reference_points": [
+        "ahorro",
+        "mantenimiento preventivo vs correctivo",
+        "COMP-001",
+        "costo preventivo",
+        "costo correctivo"
+      ],
+      "notes": "Debe comparar el costo del mantenimiento preventivo contra el impacto de un fallo correctivo."
+    },
+    {
+      "id": "q016",
+      "query": "Crea una orden de trabajo urgente para inspeccionar los rodamientos de MOTOR-001 con prioridad crítica.",
+      "category": "orden_trabajo",
+      "agent_expected": "work_order_creator",
+      "reference_points": [
+        "orden de trabajo creada",
+        "MOTOR-001",
+        "prioridad crítica",
+        "inspección de rodamientos",
+        "ID de la orden"
+      ],
+      "notes": "Debe confirmar la creación de la OT con su ID, máquina, descripción y prioridad."
+    },
+    {
+      "id": "q017",
+      "query": "¿Qué órdenes de trabajo están abiertas actualmente para la PUMP-001 y en qué estado se encuentran?",
+      "category": "orden_trabajo",
+      "agent_expected": "synthesizer",
+      "reference_points": [
+        "órdenes de trabajo",
+        "PUMP-001",
+        "estado de la OT",
+        "prioridad",
+        "asignado a"
+      ],
+      "notes": "Debe listar las OTs con su estado (open/in_progress/completed) y prioridad."
+    },
+    {
+      "id": "q018",
+      "query": "Dame un resumen ejecutivo del estado actual de la planta: equipos críticos, alertas abiertas y riesgo económico.",
+      "category": "resumen_operativo",
+      "agent_expected": "synthesizer",
+      "reference_points": [
+        "número de equipos críticos",
+        "alertas abiertas",
+        "exposición al riesgo en USD",
+        "salud de planta",
+        "recomendación prioritaria"
+      ],
+      "notes": "Pregunta amplia de nivel ejecutivo. La respuesta debe ser estructurada y concisa, cubriendo todos los KPIs principales."
+    },
+    {
+      "id": "q019",
+      "query": "Si tuviera que priorizar una intervención de mantenimiento esta semana con recursos limitados, ¿qué máquina debería atender primero y por qué?",
+      "category": "decision_apoyo",
+      "agent_expected": "synthesizer",
+      "reference_points": [
+        "máquina con mayor riesgo",
+        "probabilidad de fallo",
+        "vida útil restante",
+        "impacto económico",
+        "justificación de la decisión"
+      ],
+      "notes": "Pregunta de soporte a decisión multi-criterio. La respuesta debe integrar datos de sensores, RUL e impacto económico para dar una recomendación justificada."
+    },
+    {
+      "id": "q020",
+      "query": "¿Qué máquinas tienen alertas críticas activas y cuáles son sus probabilidades de fallo actuales?",
+      "category": "resumen_operativo",
+      "agent_expected": "sensor_analyst",
+      "reference_points": [
+        "alertas críticas",
+        "máquina o máquinas afectadas",
+        "probabilidad de fallo",
+        "severidad",
+        "acción recomendada"
+      ],
+      "notes": "Debe listar todas las máquinas con alertas de severidad crítica, su probabilidad de fallo y la acción sugerida."
+    }
+  ]
+}
