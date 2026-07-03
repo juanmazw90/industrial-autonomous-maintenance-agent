@@ -1,0 +1,160 @@
+{
+  "__inputs": [{"name": "DS_PROMETHEUS", "label": "Prometheus", "type": "datasource", "pluginId": "prometheus"}],
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {"title": "API & Infra", "url": "/d/amia-api-v1", "type": "dashboards"}
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 20,
+      "title": "Endpoints de IA",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "reqps", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}},
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 8, "x": 0, "y": 1},
+      "id": 21,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "sum(rate(http_requests_total{job=\"amia-backend\",handler=~\"/process_input.*\"}[2m]))",
+          "legendFormat": "queries/s",
+          "refId": "A"
+        }
+      ],
+      "title": "Consultas al Agente (streaming)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "reqps", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}},
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 8, "x": 8, "y": 1},
+      "id": 22,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "sum(rate(http_requests_total{job=\"amia-backend\",handler=~\"/predict.*\"}[2m]))",
+          "legendFormat": "predicciones/s",
+          "refId": "A"
+        }
+      ],
+      "title": "Predicciones ML (failure + RUL + RCA)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+      "fieldConfig": {
+        "defaults": {"unit": "s", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 10}, {"color": "red", "value": 30}]}},
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 1},
+      "id": 23,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"amia-backend\",handler=~\"/process_input.*\"}[5m])) by (le))",
+          "legendFormat": "p95 latencia agente",
+          "refId": "A"
+        }
+      ],
+      "title": "Latencia p95 — Agente AMIA",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "id": 24,
+      "title": "Series Temporales",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "id": 25,
+      "options": {
+        "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "sum(rate(http_requests_total{job=\"amia-backend\",handler=~\"/process_input.*\"}[2m]))",
+          "legendFormat": "agente chat",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "sum(rate(http_requests_total{job=\"amia-backend\",handler=~\"/predict/failure\"}[2m]))",
+          "legendFormat": "failure prediction",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "sum(rate(http_requests_total{job=\"amia-backend\",handler=~\"/predict/rul.*\"}[2m]))",
+          "legendFormat": "RUL",
+          "refId": "C"
+        }
+      ],
+      "title": "Tráfico AI por Endpoint",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "id": 26,
+      "options": {
+        "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"amia-backend\",handler=~\"/process_input.*\"}[2m])) by (le))",
+          "legendFormat": "agente p50",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"amia-backend\",handler=~\"/process_input.*\"}[2m])) by (le))",
+          "legendFormat": "agente p95",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "amia-prometheus"},
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"amia-backend\",handler=~\"/predict.*\"}[2m])) by (le))",
+          "legendFormat": "ML predict p50",
+          "refId": "C"
+        }
+      ],
+      "title": "Latencia AI (p50 / p95)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["amia", "ai", "llm"],
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AMIA — AI Ops",
+  "uid": "amia-ai-v1",
+  "version": 1
+}

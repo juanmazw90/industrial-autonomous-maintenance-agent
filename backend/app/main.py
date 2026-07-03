@@ -20,6 +20,7 @@ from .observability.logging import configure_logging
 from .observability.correlation import CorrelationIdMiddleware
 from .observability.audit_middleware import AuditMiddleware
 from .infra.demo_identity import DemoIdentityMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from .api.v2.events import router as events_router
 from .api.v2.config import router as config_router
 from .api.v2.operations import router as operations_router
@@ -138,6 +139,11 @@ app.include_router(operations_router)
 app.include_router(agents_router)
 app.include_router(ml_router)
 app.include_router(platform_router)
+
+Instrumentator(
+    should_group_status_codes=True,
+    excluded_handlers=[r"/health", r"/docs", r"/openapi\.json", r"/redoc"],
+).instrument(app).expose(app, endpoint="/prom-metrics", include_in_schema=False)
 
 # Tag legacy v1 routes with HTTP deprecation headers (RFC 8594).
 _V1_PREFIXES = ("/predict/", "/sensors/", "/work-orders", "/evaluate", "/metrics/")

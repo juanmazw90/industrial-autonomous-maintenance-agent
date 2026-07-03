@@ -5,8 +5,43 @@ import { api } from "@/lib/api";
 import { fmt, fmtTs, fmtDuration } from "@/lib/utils";
 import {
   CheckCircle2, XCircle, Clock, AlertTriangle,
-  Bot, Database, FlaskConical, Activity, Cpu,
+  Bot, Database, FlaskConical, Activity, Cpu, ExternalLink,
 } from "lucide-react";
+
+// ── External tools ────────────────────────────────────────────────────────
+
+const EXTERNAL_TOOLS = [
+  { name: "Grafana",    url: "http://localhost:3002", desc: "Dashboards API & AI Ops",    color: "text-orange-400" },
+  { name: "Prometheus", url: "http://localhost:9090", desc: "Métricas y alertas",          color: "text-red-400" },
+  { name: "Langfuse",   url: "http://localhost:3001", desc: "Trazas LLM y costos",         color: "text-purple-400" },
+  { name: "MLflow",     url: "http://localhost:5000", desc: "Registro de modelos",          color: "text-blue-400" },
+  { name: "Qdrant",     url: "http://localhost:6333/dashboard", desc: "Vector store", color: "text-green-400" },
+];
+
+function ExternalToolsSection() {
+  return (
+    <section>
+      <SectionTitle icon={ExternalLink} title="Herramientas Externas" />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {EXTERNAL_TOOLS.map(({ name, url, desc, color }) => (
+          <a
+            key={name}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col gap-1.5 bg-gray-900/60 border border-gray-800 hover:border-gray-600 rounded-xl px-4 py-3 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className={`text-sm font-semibold ${color}`}>{name}</span>
+              <ExternalLink size={11} className="text-gray-700 group-hover:text-gray-500 transition-colors" />
+            </div>
+            <span className="text-[11px] text-gray-600 leading-snug">{desc}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 // ── Shared primitives ─────────────────────────────────────────────────────
 
@@ -348,6 +383,7 @@ export default function MonitoringPage() {
       <AgentsSection />
       <RagSection />
       <ModelsSection />
+      <ExternalToolsSection />
     </div>
   );
 }

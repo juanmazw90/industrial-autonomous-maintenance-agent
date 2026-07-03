@@ -36,6 +36,7 @@ dependencies = [
     "pytest-asyncio>=1.4.0",
     "anyio>=4.13.0",
     "structlog>=26.1.0",
+    "prometheus-fastapi-instrumentator>=0.22",
     # shap is optional — install manually if Python < 3.11: uv pip install "shap>=0.42,<0.52"
 ]
 
