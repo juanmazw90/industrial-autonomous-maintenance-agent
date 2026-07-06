@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: amia-postgres
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-amia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB:-amia}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U amia -d amia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: amia-redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.0
+    container_name: amia-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: amia-backend
+    ports:
+      - "8000:8000"
+    environment:
+      ANTHROPIC_API_KEY:    ${ANTHROPIC_API_KEY}
+      MLFLOW_TRACKING_URI:  sqlite:////app/mlruns/mlflow.db
+      DATA_PATH:            /app/data/synthetic/sensor_readings.parquet
+      REDIS_URL:            redis://redis:6379
+      QDRANT_HOST:          qdrant
+      RATE_LIMIT_REQUESTS:  ${RATE_LIMIT_REQUESTS:-10}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      LANGFUSE_HOST:        ${LANGFUSE_HOST:-}
+      LANGFUSE_PUBLIC_KEY:  ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY:  ${LANGFUSE_SECRET_KEY:-}
+    volumes:
+      - ../mlruns:/app/mlruns:ro
+      - ../data:/app/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    container_name: amia-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:

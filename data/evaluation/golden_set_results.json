@@ -1,0 +1,545 @@
+{
+  "run_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+  "timestamp": "2026-07-06T16:39:23.451368+00:00",
+  "backend_url": "http://localhost:8000",
+  "judge_used": true,
+  "judge_model": "claude-sonnet-5",
+  "total": 20,
+  "passed": 10,
+  "failed": 10,
+  "pass_rate": 0.5,
+  "results": [
+    {
+      "id": "q001",
+      "query": "¿Cuál es el procedimiento de mantenimiento preventivo para una bomba centrífuga?",
+      "category": "mantenimiento_preventivo",
+      "agent_expected": "doc_expert",
+      "timestamp": "2026-07-06T16:32:51.417279+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Procedimiento de Mantenimiento Preventivo para Bomba Centrífuga\n\nLo siento, pero **el contexto proporcionado no contiene información específica sobre procedimientos de mantenimiento preventivo para bombas centrífugas**.\n\n### Lo que sí indica el contexto disponible:\n\nEl material proporcionado corresponde al **manual de mantenimiento de rodamientos SKF**, que menciona únicamente de forma tangencial aspectos relacionados con bombas:\n\n- En sistemas de lubricación centralizada, el mantenimiento suele limitarse a **rellenar el depósito de lubricante** e **inspeccionar los puntos de conexión** en busca de fugas de aceite [1].\n- Se recomienda **seguir siempre las instrucciones de mantenimiento suministradas con el equipo** [1].\n\n---\n\n### Recomendación\n\nPara obtener un procedimiento completo y preciso de mantenimiento preventivo de bombas centrífugas, le sugiero consultar:\n\n- ✅ El **manual del fabricante** de la bomba específica\n- ✅ Normas como **ISO 10816** o **API 610**\n- ✅ Documentación técnica específica de su equipo\n\n¿Desea que le ayude con alguna consulta relacionada con el **mantenimiento de rodamientos**, que sí está cubierta por el contexto disponible?",
+      "agent_used": "doc_expert",
+      "cached": true,
+      "sources": [
+        {
+          "index": 1,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 2.3478
+        },
+        {
+          "index": 2,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 1.262
+        },
+        {
+          "index": 3,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 1.126
+        }
+      ],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.6,
+        "hallucination_flag": false,
+        "accuracy": 2,
+        "notes": "El agente es honesto al indicar que el contexto no cubre el tema y evita inventar información, lo cual es positivo en términos de fundamentación. Sin embargo, no logra cubrir los puntos de referencia esperados (rodamientos, lubricación, sellos, alineamiento, vibración) que son conocimiento técnico estándar en mantenimiento de bombas centrífugas y podrían haberse mencionado de forma general aunque el contexto específico fuera limitado. La respuesta es incompleta respecto a lo que se esperaría de un procedimiento de mantenimiento preventivo, aunque no hay alucinación de datos falsos."
+      }
+    },
+    {
+      "id": "q002",
+      "query": "¿Cuáles son los síntomas típicos de cavitación en una bomba centrífuga y cómo se detectan?",
+      "category": "modos_de_fallo",
+      "agent_expected": "doc_expert",
+      "timestamp": "2026-07-06T16:33:07.204585+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Síntomas de Cavitación en Bomba Centrífuga\n\nLo siento, pero **el contexto proporcionado no contiene información sobre cavitación en bombas centrífugas ni sus métodos de detección**.\n\n### Lo que sí contiene el contexto disponible:\n\nLos documentos proporcionados corresponden al **Manual de Mantenimiento de Rodamientos SKF**, que aborda:\n\n- Identificación de síntomas de problemas en **rodamientos** [1]\n- Causas y daños asociados a rodamientos [2]\n- Procedimientos de **reposición de grasa** en rodamientos [3]\n\n---\n\n### Recomendación\n\nPara información sobre cavitación en bombas centrífugas, le sugiero consultar:\n\n- ✅ El **manual técnico del fabricante** de su bomba\n- ✅ Norma **ISO 9906** (rendimiento hidráulico de bombas)\n- ✅ Estándares **API 610** para bombas centrífugas industriales\n- ✅ Literatura técnica de fabricantes como **Grundfos, KSB o Flowserve**\n\n---\n\n¿Desea que le ayude con alguna consulta relacionada con **síntomas o diagnóstico de problemas en rodamientos**, que sí está cubierta por el contexto disponible?",
+      "agent_used": "doc_expert",
+      "cached": true,
+      "sources": [
+        {
+          "index": 1,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 1.0036
+        },
+        {
+          "index": 2,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": -1.1103
+        },
+        {
+          "index": 3,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": -1.1965
+        }
+      ],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.9,
+        "hallucination_flag": false,
+        "accuracy": 2,
+        "notes": "El agente no inventa datos y es transparente sobre la limitación del contexto (buena honestidad, evita alucinación), pero no cubre ninguno de los reference_points (ruido/crepitación, vibración, caída de presión/caudal, erosión del impulsor, temperatura). La respuesta es técnicamente correcta en su negativa pero no aporta el conocimiento técnico general esperado que un agente experto podría ofrecer aunque no esté en el contexto documental específico, por lo que la utilidad para el usuario es baja."
+      }
+    },
+    {
+      "id": "q003",
+      "query": "¿Qué indica una vibración de rodamiento elevada en un motor de inducción y cuáles son las causas más frecuentes?",
+      "category": "diagnostico",
+      "agent_expected": "doc_expert",
+      "timestamp": "2026-07-06T16:33:14.079760+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Vibración Elevada en Rodamientos de Motor de Inducción\n\n### ⚠️ Advertencia Clave sobre Detección vs. Análisis\n\nEs fundamental **no confundir la detección con el análisis**. Sustituir un rodamiento dañado tras detectar altos niveles de vibración **no soluciona el problema más que temporalmente**. Siempre se debe **encontrar, analizar y abordar la causa raíz** de la vibración. [1]\n\n---\n\n### 🔊 ¿Qué indica una vibración elevada?\n\nUna vibración elevada generalmente señala que el rodamiento **está funcionando de forma irregular**. Los indicadores auditivos asociados incluyen: [1]\n\n- ❌ **Rechinado**\n- ❌ **Chirrido**\n- ❌ **Sonidos irregulares**\n\n> Un rodamiento en **buen estado** produce un *\"ronroneo\" suave* como referencia normal. [1]\n\n---\n\n### 🔧 Causas Más Frecuentes\n\nSegún el contexto disponible, una causa principal documentada es:\n\n**1. Lubricación ineficaz** [2]\n- Lubricante **incorrecto**\n- Cantidad **inadecuada**\n- Lubricante que **no llega en el momento oportuno**\n\n> Una lubricación deficiente compromete directamente la vida útil y el funcionamiento confiable del rodamiento. [2]\n\n---\n\n### ⚠️ Limitación del Contexto\n\nEl material disponible **no detalla exhaustivamente** todas las causas de vibración elevada en motores de inducción (como desalineación, desequilibrio, montaje incorrecto, etc.). Para un diagnóstico completo se recomienda consultar:\n\n- ✅ **ISO 10816** – Evaluación de vibraciones en maquinaria\n- ✅ **Manual técnico del fabricante** del motor\n\n¿Desea profundizar en algún aspecto específico cubierto por el manual SKF?",
+      "agent_used": "doc_expert",
+      "cached": true,
+      "sources": [
+        {
+          "index": 1,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 5.5434
+        },
+        {
+          "index": 2,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 4.0425
+        },
+        {
+          "index": 3,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 3.9349
+        }
+      ],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.55,
+        "hallucination_flag": false,
+        "accuracy": 3,
+        "notes": "La respuesta es coherente y bien estructurada, y cita fuentes ([1],[2]) sin inventar datos falsos, pero no cubre la mayoría de los reference_points esperados (desbalance, desalineamiento, resonancia, valores límite ISO 10816 específicos). Solo menciona lubricación deficiente como causa y reconoce explícitamente la limitación del contexto, lo cual es honesto pero deja la respuesta incompleta frente a lo que se esperaba técnicamente."
+      }
+    },
+    {
+      "id": "q004",
+      "query": "¿Cuál es el intervalo de inspección recomendado para los rodamientos de un compresor de tornillo?",
+      "category": "plan_mantenimiento",
+      "agent_expected": "doc_expert",
+      "timestamp": "2026-07-06T16:33:22.993653+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Intervalo de Inspección para Rodamientos de Compresor de Tornillo\n\nLo siento, pero **el contexto proporcionado no contiene información específica sobre intervalos de inspección para rodamientos en compresores de tornillo**.\n\n### Lo que sí indica el contexto disponible:\n\nLos fragmentos proporcionados hacen referencia a:\n\n- Procedimientos de **montaje de unidades de rodamientos SKF ConCentra** [1]\n- Procedimientos de **desmontaje de rodamientos con manguito** [2]\n- Una nota general sobre **relubricación**, indicando que cuando se utilizan diferentes rodamientos en un conjunto, se debe aplicar el **intervalo de relubricación más corto calculado** a todos los rodamientos [3]\n\nSin embargo, ninguno de estos fragmentos menciona intervalos de inspección específicos para compresores de tornillo.\n\n---\n\n### Recomendación\n\nPara obtener esta información de forma precisa, le sugiero consultar:\n\n- ✅ El **manual técnico del fabricante** del compresor (Atlas Copco, Kaeser, Ingersoll Rand, etc.)\n- ✅ Las **tablas de relubricación SKF** completas del manual (mencionadas en página 192) [3]\n- ✅ Norma **ISO 1217** para compresores de desplazamiento positivo\n\n¿Desea que le ayude con alguna otra consulta sobre los temas cubiertos en los fragmentos disponibles?",
+      "agent_used": "doc_expert",
+      "cached": true,
+      "sources": [
+        {
+          "index": 1,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 5.4271
+        },
+        {
+          "index": 2,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 4.1648
+        },
+        {
+          "index": 3,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 4.0497
+        }
+      ],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.5,
+        "hallucination_flag": false,
+        "accuracy": 2,
+        "notes": "El agente reconoce correctamente que el contexto no contiene datos específicos, evitando inventar cifras (buena honestidad y sin alucinación). Sin embargo, no aporta ninguno de los conceptos de referencia esperados (horas de operación, inspección visual, análisis de aceite, temperatura, vibración), que son conocimientos técnicos generales que podría haber mencionado como orientación básica aunque no estuvieran en el contexto. La respuesta es técnicamente correcta pero incompleta respecto a lo que un experto en mantenimiento industrial normalmente indicaría."
+      }
+    },
+    {
+      "id": "q005",
+      "query": "¿Cuáles son los modos de fallo más comunes en motores de inducción de baja tensión?",
+      "category": "modos_de_fallo",
+      "agent_expected": "doc_expert",
+      "timestamp": "2026-07-06T16:33:30.441420+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Modos de Fallo en Motores de Inducción de Baja Tensión\n\nLo siento, pero **el contexto proporcionado no contiene información específica sobre los modos de fallo más comunes en motores de inducción de baja tensión**.\n\n### Lo que sí indica el contexto disponible:\n\nLos fragmentos corresponden al manual **SIMOTICS SD - Motores de Baja Tensión 1LE5, 1PC4 (AH 400/450) de Siemens**, edición 2020, e indican únicamente que el documento contiene las siguientes secciones: [2]\n\n- Consignas de seguridad\n- Descripción\n- Preparación para el uso\n- Montaje\n- Conexión eléctrica\n- Puesta en marcha\n- Funcionamiento\n- **Mantenimiento** *(Capítulo 9)*\n- Repuestos\n- Datos técnicos\n\nSin embargo, **los fragmentos proporcionados no incluyen el contenido desarrollado** de ninguna de estas secciones, particularmente del Capítulo 9 de Mantenimiento. [2]\n\n---\n\n### Recomendación\n\nPara obtener información precisa sobre modos de fallo, le sugiero:\n\n- ✅ Consultar el **Capítulo 9 - Mantenimiento** del manual SIMOTICS SD completo [2]\n- ✅ Norma **IEC 60034** para máquinas eléctricas rotativas\n- ✅ Documentación técnica de **Siemens** disponible en www.siemens.com/drives [3]\n\n¿Dispone de más fragmentos del manual que pueda compartir para una respuesta más precisa?",
+      "agent_used": "doc_expert",
+      "cached": true,
+      "sources": [
+        {
+          "index": 1,
+          "source": "instrucciones_motor_baja-tension.pdf",
+          "page": "",
+          "rerank_score": 3.4501
+        },
+        {
+          "index": 2,
+          "source": "instrucciones_motor_baja-tension.pdf",
+          "page": "",
+          "rerank_score": 1.344
+        },
+        {
+          "index": 3,
+          "source": "instrucciones_motor_baja-tension.pdf",
+          "page": "",
+          "rerank_score": 0.3094
+        }
+      ],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.6,
+        "hallucination_flag": false,
+        "accuracy": 2,
+        "notes": "El agente no inventa datos (no hay hallucination), pero falla en responder la pregunta técnica: no menciona ninguno de los modos de fallo esperados (rodamientos, sobrecalentamiento, bobinado, desalineamiento, humedad). En lugar de aportar conocimiento general de ingeniería eléctrica cuando el contexto documental no lo cubre, se limita a decir que no hay información y sugiere fuentes externas. Es una respuesta segura pero incompleta y de bajo valor práctico para el usuario."
+      }
+    },
+    {
+      "id": "q006",
+      "query": "¿Cómo se realiza el procedimiento de alineación de un acoplamiento entre motor y bomba?",
+      "category": "mantenimiento_preventivo",
+      "agent_expected": "doc_expert",
+      "timestamp": "2026-07-06T16:33:37.894099+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Procedimiento de Alineación de Acoplamiento Motor-Bomba\n\n### Lo que indica el contexto disponible:\n\nEl contexto proporcionado contiene **información parcial** sobre alineación de máquinas. A continuación se detalla lo documentado:\n\n---\n\n### 📐 Pasos de Alineación Documentados\n\n**1. Verificación del intersticio axial**\n- Al efectuar el posicionamiento, procure que el **intersticio axial en el acoplamiento sea uniforme en todo el contorno** (y→0) [3]\n\n**2. Fijación al cimiento**\n- Fije la máquina al cimiento una vez realizada la alineación [3]\n- ⚠️ La elección de los **elementos de fijación** depende del cimiento y es **responsabilidad del operador** de la instalación [3]\n\n---\n\n### 🛠️ Métodos de Alineación Mencionados\n\nEl documento hace referencia a dos métodos: [3]\n\n| Método | Descripción |\n|--------|-------------|\n| ① **Calzado con chapas** | Para alinear el motor ajustando su altura |\n| ② **Alineación láser** | Método de precisión para alineación |\n\n---\n\n### ⚠️ Advertencia Adicional Relevante\n\nEn configuraciones de **accionamiento en tándem**, si no se utiliza un **acoplamiento aislado** entre motores, pueden circular corrientes por los cojinetes causando daños en los mismos. [1]\n> ✅ **Utilice siempre un acoplamiento aislado** para conectar los motores en estas configuraciones. [1]\n\n---\n\n### ⚠️ Limitación del Contexto\n\nEl contexto **no detalla el procedimiento completo** de alineación. Para información exhaustiva se recomienda consultar:\n\n- ✅ La **Tabla 5-4** del manual de instrucciones del motor [3]\n- ✅ El manual completo **instrucciones_motor_baja-tension.pdf**\n- ✅ Norma **ISO 10816** o **API 686** para procedimientos de alineación\n\n¿Dispone de más fragmentos del manual para complementar la respuesta?",
+      "agent_used": "doc_expert",
+      "cached": true,
+      "sources": [
+        {
+          "index": 1,
+          "source": "instrucciones_motor_baja-tension.pdf",
+          "page": "",
+          "rerank_score": 1.7729
+        },
+        {
+          "index": 2,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": 0.9972
+        },
+        {
+          "index": 3,
+          "source": "instrucciones_motor_baja-tension.pdf",
+          "page": "",
+          "rerank_score": 0.815
+        }
+      ],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.55,
+        "hallucination_flag": false,
+        "accuracy": 2,
+        "notes": "La respuesta es honesta al reconocer las limitaciones del contexto, pero no cubre los conceptos clave esperados (alineación angular, alineación paralela, uso de reloj comparador, tolerancias admisibles, torque de apriete). Menciona métodos generales (calzado con chapas, láser) pero sin detallar procedimiento técnico real. No hay invención de datos falsos, se basa en fragmentos citados, pero la cobertura del tema es incompleta y superficial respecto a lo que un procedimiento de alineación debería incluir."
+      }
+    },
+    {
+      "id": "q007",
+      "query": "La PUMP-001 muestra una vibración de rodamiento de 4.2 mm/s cuando el nominal es 1.2 mm/s. ¿Cuál es el riesgo de fallo y qué recomiendas?",
+      "category": "analisis_sensor",
+      "agent_expected": "sensor_analyst",
+      "timestamp": "2026-07-06T16:33:46.676692+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Análisis de Riesgo - PUMP-001\n\n### 📊 Estado Actual del Sistema de Predicción\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Estado** | 🟢 RIESGO BAJO |\n| **Probabilidad de fallo (24h)** | 0.0% |\n| **Supera umbral de alerta (46%)** | No |\n| **Última lectura** | 2024-12-30 23:00:00 |\n\n---\n\n### ⚠️ Discrepancia Importante Detectada\n\nExiste una **contradicción significativa** entre:\n\n- ✅ El **sistema de predicción** indica riesgo bajo con 0.0% de probabilidad de fallo\n- ❌ La **vibración reportada** de **4.2 mm/s** supera **3.5 veces** el valor nominal de 1.2 mm/s\n\n> Esta discrepancia **requiere atención inmediata**, independientemente del estado del sistema predictivo.\n\n---\n\n### 🔍 Análisis de la Vibración\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Vibración nominal** | 1.2 mm/s |\n| **Vibración actual** | 4.2 mm/s |\n| **Desviación** | +250% sobre el nominal |\n\n---\n\n### 🔧 Recomendaciones\n\n**Acciones Inmediatas:**\n1. ✅ **Verificar** la lectura del sensor de vibración para descartar falso positivo\n2. ✅ **Inspeccionar visualmente** el rodamiento en busca de signos físicos de daño\n3. ✅ **Verificar el estado de la lubricación** del rodamiento\n4. ✅ **Contrastar** con otras fuentes de medición (analizador de vibraciones portátil)\n\n**Acciones a Corto Plazo:**\n1. 🔧 Si se confirma la vibración elevada, **programar inspección detallada**\n2. 🔧 **Investigar la causa raíz** antes de sustituir el rodamiento\n3. 🔧 Revisar **desalineación, desequilibrio o montaje incorrecto** como posibles causas\n\n---\n\n### ⚠️ Nota Importante\n\nEl sistema predictivo muestra **0.0% de probabilidad de fallo**, sin embargo:\n\n> *\"Sustituir un rodamiento dañado tras detectar altos niveles de vibración **no soluciona el problema** más que temporalmente. Siempre se debe **encontrar, analizar y abordar la causa raíz**\"* [1]\n\n---\n\n### 📋 Conclusión\n\n**No ignore la vibración elevada** basándose únicamente en el estado verde del sistema predictivo. Se recomienda **verificación inmediata en campo** y mantener monitoreo continuo hasta resolver la discrepancia.\n\n¿Desea orientación sobre algún paso específico del diagnóstico?",
+      "agent_used": "sensor_analyst",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.85,
+        "hallucination_flag": false,
+        "accuracy": 4,
+        "notes": "La respuesta identifica correctamente la vibración por encima del nominal, menciona PUMP-001, recomienda inspección y análisis de causa raíz (desalineación, desequilibrio, lubricación, desgaste de rodamiento). Sin embargo, no concluye explícitamente 'riesgo elevado/crítico' del fallo del rodamiento, sino que reporta una discrepancia con el sistema predictivo (0% riesgo) y recomienda verificar antes de escalar. Esto es técnicamente prudente pero se aparta ligeramente del reference point de 'riesgo elevado' al calificarlo como bajo según el sistema, aunque advierte fuertemente sobre la contradicción. La cifra de +250% de desviación es matemáticamente correcta (4.2/1.2=3.5, incremento=250%), consistente con los datos. No hay invención de datos falsos, todo se basa en cálculos correctos y buenas prácticas de mantenimiento predictivo."
+      }
+    },
+    {
+      "id": "q008",
+      "query": "MOTOR-001 tiene temperatura de rodamiento de 74°C cuando el nominal es 52°C. ¿Qué está ocurriendo y cuál es la probabilidad de fallo?",
+      "category": "analisis_sensor",
+      "agent_expected": "sensor_analyst",
+      "timestamp": "2026-07-06T16:34:16.440719+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Análisis de Riesgo - MOTOR-001\n\n### 📊 Estado Actual del Sistema de Predicción\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Estado** | 🟢 RIESGO BAJO |\n| **Probabilidad de fallo (24h)** | 0.0% |\n| **Supera umbral de alerta (46%)** | No |\n| **Última lectura** | 2024-12-30 23:00:00 |\n\n---\n\n### ⚠️ Discrepancia Crítica Detectada\n\nExiste una **contradicción significativa** entre:\n\n- ✅ El **sistema de predicción** indica riesgo bajo con 0.0% de probabilidad de fallo\n- ❌ La **temperatura reportada** de **74°C** supera **42% por encima** del valor nominal de 52°C\n\n---\n\n### 🌡️ Análisis de la Temperatura\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Temperatura nominal** | 52°C |\n| **Temperatura actual** | 74°C |\n| **Desviación** | +22°C (+42% sobre el nominal) |\n\n> ⚠️ **Regla general en rodamientos:** Un incremento de **10-15°C sobre el nominal** ya es motivo de inspección. Una desviación de **+22°C** representa una condición **anormal seria**.\n\n---\n\n### 🔍 Causas Más Probables\n\nSegún el contexto disponible, las causas más frecuentes asociadas a temperatura elevada en rodamientos son: [1]\n\n**1. Lubricación Ineficaz**\n- ❌ Lubricante **incorrecto** para las condiciones de operación\n- ❌ Cantidad de lubricante **inadecuada** (exceso o defecto)\n- ❌ Lubricante **degradado** o contaminado\n- ❌ Lubricante que **no llega en el momento oportuno**\n\n**2. Otras Causas Posibles**\n- ❌ Rodamiento **dañado o deteriorado**\n- ❌ **Montaje incorrecto** del rodamiento\n- ❌ **Sobrecarga** del rodamiento\n\n---\n\n### 🔧 Recomendaciones\n\n**Acciones Inmediatas:**\n1. ✅ **Verificar** la lectura del sensor de temperatura para descartar falso positivo\n2. ✅ **Inspeccionar visualmente** el estado del lubricante (color, consistencia, nivel)\n3. ✅ **Medir temperatura** con termómetro infrarrojo para confirmar lectura\n4. ✅ **Monitorear tendencia** de temperatura en los próximos 30-60 minutos\n\n**Acciones a Corto Plazo:**\n1. 🔧 Si se confirma temperatura elevada, **inspeccionar el sistema de lubricación**\n2. 🔧 **Verificar intervalo de relubricación** — si se utilizan diferentes rodamientos, aplicar siempre el **intervalo más corto calculado** [2]\n3. 🔧 **No sustituir el rodamiento** sin antes identificar la causa raíz [1]\n4. 🔧 Programar **inspección detallada** del rodamiento\n\n---\n\n### 📋 Conclusión\n\n| Aspecto | Evaluación |\n|---------|------------|\n| **Sistema predictivo** | 🟢 Bajo riesgo |\n| **Temperatura actual** | 🔴 Condición anormal |\n| **Recomendación** | ⚠️ **Verificación inmediata en campo** |\n\n> ⚠️ **No confíe exclusivamente** en el estado verde del sistema predictivo. La temperatura elevada es una señal física que **requiere investigación inmediata** independientemente del resultado predictivo.\n\n¿Desea orientación sobre el procedimiento de inspección de lubricación o diagnóstico del rodamiento?",
+      "agent_used": "sensor_analyst",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.9,
+        "hallucination_flag": false,
+        "accuracy": 5,
+        "notes": "La respuesta cubre todos los reference_points: identifica la temperatura elevada, calcula correctamente el 42% sobre el nominal, menciona lubricación insuficiente y rodamiento desgastado como causas probables, reporta la probabilidad de fallo del sistema predictivo (0.0%) y hace referencia explícita a MOTOR-001. Además añade valor al señalar la discrepancia entre el sistema predictivo y la lectura física, recomendando verificación in situ, lo cual es coherente con buenas prácticas de mantenimiento. No se detectan datos inventados; las citas [1][2] sugieren uso de fuentes de contexto. Es una respuesta técnica, bien fundamentada y completa."
+      }
+    },
+    {
+      "id": "q009",
+      "query": "¿Cuál es la probabilidad de fallo de COMP-001 en las próximas 24 horas según los sensores actuales?",
+      "category": "prediccion_fallo",
+      "agent_expected": "sensor_analyst",
+      "timestamp": "2026-07-06T16:34:46.864822+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Análisis de Riesgo - COMP-001\n\n### 📊 Estado Actual del Sistema de Predicción\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Estado** | 🟢 RIESGO BAJO |\n| **Probabilidad de fallo (24h)** | **0.0%** |\n| **Supera umbral de alerta (46%)** | No |\n| **Última lectura** | 2024-12-30 23:00:00 |\n\n---\n\n### ✅ Interpretación\n\nSegún los datos del sistema de predicción, **COMP-001 presenta una probabilidad de fallo del 0.0% en las próximas 24 horas**, lo que indica:\n\n- 🟢 Los parámetros monitoreados se encuentran **dentro de rangos normales**\n- 🟢 **No se ha superado** el umbral de alerta del 46%\n- 🟢 No se requieren **acciones correctivas inmediatas**\n\n---\n\n### ⚠️ Consideraciones Importantes\n\n> Los datos reflejan la lectura del **2024-12-30 23:00:00**. Se recomienda:\n\n1. ✅ **Verificar** que los sensores estén operativos y calibrados\n2. ✅ **Mantener** el monitoreo continuo programado\n3. ✅ **Complementar** el análisis predictivo con **inspección visual periódica**\n\n---\n\n### 📋 Conclusión\n\n| Aspecto | Evaluación |\n|---------|------------|\n| **Riesgo actual** | 🟢 Bajo |\n| **Acción requerida** | ✅ Continuar monitoreo rutinario |\n| **Inspección urgente** | ❌ No requerida |\n\n¿Desea revisar el historial de tendencias o consultar sobre el plan de mantenimiento preventivo de COMP-001?",
+      "agent_used": "sensor_analyst",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.75,
+        "hallucination_flag": false,
+        "accuracy": 4,
+        "notes": "La respuesta cubre todos los reference_points: probabilidad (0.0%), COMP-001, umbral de alerta (46%), y recomendaciones de acción. Menciona 'sensores' aunque de forma genérica al recomendar verificar su calibración, sin especificar qué sensores concretos se usaron para el cálculo. La cifra exacta de 0.0% y el umbral de 46% no pueden verificarse sin acceso a los datos reales del sistema, por lo que existe cierto riesgo de que sean valores no confirmados, aunque el formato sugiere que provienen de una consulta real al sistema de predicción. No hay invención evidente de conceptos ajenos al dominio, pero falta trazabilidad explícita de qué sensores/parámetros alimentaron el modelo predictivo."
+      }
+    },
+    {
+      "id": "q010",
+      "query": "La corriente de MOTOR-002 está al 145% del valor nominal desde hace 2 horas. ¿Qué puede estar causando esto?",
+      "category": "analisis_sensor",
+      "agent_expected": "sensor_analyst",
+      "timestamp": "2026-07-06T16:35:07.895341+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Análisis de Riesgo - MOTOR-002\n\n### 📊 Estado Actual del Sistema de Predicción\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Estado** | 🟢 RIESGO BAJO |\n| **Probabilidad de fallo (24h)** | 0.0% |\n| **Supera umbral de alerta (46%)** | No |\n| **Última lectura** | 2024-12-30 23:00:00 |\n\n---\n\n### ⚠️ Discrepancia Crítica Detectada\n\nExiste una **contradicción significativa** entre:\n\n- ✅ El **sistema de predicción** indica riesgo bajo con 0.0% de probabilidad de fallo\n- ❌ La **corriente reportada** al **145% del nominal durante 2 horas continuas** representa una condición de **sobrecarga severa**\n\n---\n\n### ⚡ Análisis de la Sobrecarga\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Corriente nominal** | 100% (referencia) |\n| **Corriente actual** | 145% del nominal |\n| **Desviación** | +45% sobre el nominal |\n| **Duración** | 2 horas continuas |\n\n> ⚠️ **Una sobrecarga sostenida del 145% durante 2 horas** representa un riesgo serio de daño térmico en el bobinado del motor.\n\n---\n\n### 🔍 Posibles Causas\n\n**⚠️ Nota:** El contexto disponible no detalla específicamente las causas de sobrecorriente en motores de inducción. Sin embargo, basándome en el manual SIMOTICS SD disponible, se pueden identificar las siguientes áreas de investigación: [1]\n\n**1. Causas Mecánicas en la Carga**\n- ❌ **Sobrecarga mecánica** en el equipo accionado\n- ❌ **Atascamiento parcial** del sistema mecánico\n- ❌ **Rozamiento excesivo** en rodamientos o sellos\n\n**2. Causas Eléctricas**\n- ❌ **Desequilibrio de tensión** en la alimentación\n- ❌ **Fallo parcial** en el sistema de arranque\n- ❌ **Problema en el variador** de frecuencia (si aplica)\n\n**3. Causas Operacionales**\n- ❌ **Condiciones de proceso** fuera de diseño\n- ❌ **Válvulas o restricciones** incorrectamente configuradas\n\n---\n\n### 🔧 Recomendaciones\n\n**Acciones Inmediatas:**\n1. ✅ **Verificar** la lectura del sensor de corriente con pinza amperimétrica\n2. ✅ **Monitorear la temperatura** del bobinado y rodamientos\n3. ✅ **Revisar las condiciones** de la carga mecánica accionada\n4. ✅ **Verificar la tensión** de alimentación en las tres fases\n\n**Acciones a Corto Plazo:**\n1. 🔧 Si se confirma la sobrecarga, **reducir la carga** inmediatamente\n2. 🔧 **Inspeccionar el equipo accionado** en busca de obstrucciones\n3. 🔧 **Revisar los relés de protección** térmica del motor [1]\n\n---\n\n### 🚨 Riesgo Real vs. Sistema Predictivo\n\n| Aspecto | Evaluación |\n|---------|------------|\n| **Sistema predictivo** | 🟢 Bajo riesgo |\n| **Corriente actual** | 🔴 Sobrecarga severa |\n| **Riesgo térmico** | 🔴 **ALTO** tras 2 horas continuas |\n| **Acción requerida** | ⚠️ **Intervención inmediata** |\n\n> ⚠️ **",
+      "agent_used": "sensor_analyst",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.85,
+        "hallucination_flag": false,
+        "accuracy": 5,
+        "notes": "La respuesta cubre todos los reference_points: sobrecarga mecánica, atascamiento/bloqueo, fallo eléctrico (desequilibrio de tensión, variador), aumento de temperatura y riesgo de quema de bobinado. Además identifica correctamente la discrepancia entre el sistema predictivo y la lectura real, y da recomendaciones prácticas coherentes con buenas prácticas de mantenimiento. No inventa datos técnicos falsos, aunque hace suposiciones razonables etiquetadas explícitamente como tal (nota de incertidumbre), lo cual es buena práctica de transparencia. Cita fuente [1] del manual SIMOTICS SD de forma apropiada sin sobre-extender su alcance."
+      }
+    },
+    {
+      "id": "q011",
+      "query": "¿Cuántas horas de vida útil le quedan a la PUMP-001 según el modelo de predicción RUL?",
+      "category": "rul",
+      "agent_expected": "rul_analyst",
+      "timestamp": "2026-07-06T16:35:38.338283+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Análisis de Vida Útil Restante - PUMP-001\n\n### 📊 Estado Actual del Modelo RUL\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Estado** | 🟢 NORMAL |\n| **Horas restantes estimadas** | **310 horas** |\n| **Degradación acumulada** | **38%** |\n| **Condición general** | Dentro de parámetros |\n\n---\n\n### 📈 Interpretación del Estado\n\n**✅ Aspectos Positivos:**\n- El equipo opera **dentro de parámetros normales**\n- Dispone de una ventana de **310 horas** para planificar intervención\n- La degradación del **38%** indica que aún resta **62% de vida útil estimada**\n\n**⚠️ Aspectos a Considerar:**\n- Con **38% de degradación acumulada**, el equipo está en la **parte media** de su ciclo de vida\n- Las **310 horas** representan aproximadamente:\n\n| Referencia | Estimación |\n|------------|------------|\n| **Días continuos** | ~13 días |\n| **Semanas (24/7)** | ~2 semanas |\n| **Semanas (8h/día)** | ~39 días laborables |\n\n---\n\n### 🔧 Recomendaciones\n\n**Planificación Preventiva:**\n1. ✅ **Programar intervención** antes de alcanzar las 310 horas estimadas\n2. ✅ **Preparar repuestos** con anticipación (rodamientos, sellos, etc.)\n3. ✅ **Intensificar monitoreo** conforme se acerque al límite estimado\n4. ✅ **No esperar** al fallo para realizar la intervención\n\n**Monitoreo Continuo:**\n1. 🔧 Verificar **tendencia de degradación** periódicamente\n2. 🔧 Cruzar datos RUL con **lecturas de vibración y temperatura**\n3. 🔧 Actualizar la estimación si se detectan **cambios en las condiciones** de operación\n\n---\n\n### 📋 Conclusión\n\n| Aspecto | Evaluación |\n|---------|------------|\n| **Urgencia de intervención** | 🟡 Media — Planificar |\n| **Ventana de planificación** | ✅ ~310 horas disponibles |\n| **Acción recomendada** | 📅 **Programar mantenimiento preventivo** |\n\n> 💡 **Aproveche la ventana disponible** para planificar la intervención de forma ordenada, evitando paradas no programadas y optimizando recursos de mantenimiento.\n\n¿Desea orientación sobre qué actividades de mantenimiento preventivo programar dentro de esta ventana?",
+      "agent_used": "rul_analyst",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.55,
+        "hallucination_flag": true,
+        "accuracy": 3,
+        "notes": "La respuesta cubre horas restantes, degradación y urgencia con buen formato, pero no menciona la confianza del modelo (aspecto clave de referencia) y presenta cifras específicas (310 horas, 38%, estado NORMAL) sin indicar fuente verificable, lo que sugiere posible invención de datos concretos no confirmados por el sistema real."
+      }
+    },
+    {
+      "id": "q012",
+      "query": "¿Qué máquina de la planta tiene la menor vida útil restante actualmente?",
+      "category": "rul",
+      "agent_expected": "rul_analyst",
+      "timestamp": "2026-07-06T16:36:02.363797+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Consulta sobre Vida Útil Restante - Flota Completa\n\n### ⚠️ Información No Disponible\n\nEl contexto proporcionado indica explícitamente:\n\n> *\"No se encontró documentación relevante\"*\n\nPor lo tanto, **no puedo determinar qué máquina de la planta tiene la menor vida útil restante** en este momento.\n\n---\n\n### 🔍 ¿Por qué puede ocurrir esto?\n\nAlgunas posibles razones:\n\n- ❌ El sistema de predicción **no tiene datos RUL actualizados** para toda la flota\n- ❌ Los sensores de alguna(s) máquina(s) **no están reportando** correctamente\n- ❌ La consulta requiere acceso a un **módulo de comparación de flota** no disponible\n- ❌ Los datos no están **indexados correctamente** en el sistema\n\n---\n\n### 💡 Recomendación\n\nPara obtener esta información, le sugiero:\n\n1. ✅ Consultar **individualmente** cada equipo conocido:\n   - PUMP-001 *(310 horas RUL, 38% degradación — dato previo)*\n   - MOTOR-001\n   - MOTOR-002\n   - COMP-001\n\n2. ✅ Verificar el **panel de control general** del sistema de monitoreo\n3. ✅ Contactar al **administrador del sistema** para revisar la disponibilidad de datos de flota\n\n---\n\n¿Desea que analice un equipo específico del que disponga de datos?",
+      "agent_used": "rul_analyst",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.4,
+        "hallucination_flag": false,
+        "accuracy": 2,
+        "notes": "El agente reconoce correctamente la falta de datos y no inventa una máquina específica como respuesta, lo cual evita alucinación. Sin embargo, no cubre los reference_points esperados (RUL comparativo, horas restantes, urgency_level, degradación) ya que no logra identificar la máquina con menor vida útil. Menciona un dato previo de PUMP-001 (310h, 38% degradación) pero no lo usa para responder la pregunta ni lo compara con otras máquinas, perdiendo la oportunidad de dar una respuesta parcial basada en datos disponibles. La respuesta es honesta pero incompleta respecto a lo esperado."
+      }
+    },
+    {
+      "id": "q013",
+      "query": "¿Cuál es el porcentaje de degradación acumulada de MOTOR-001 y cuándo se estima que necesitará intervención?",
+      "category": "rul",
+      "agent_expected": "rul_analyst",
+      "timestamp": "2026-07-06T16:36:25.227374+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Análisis de Vida Útil Restante - MOTOR-001\n\n### 📊 Estado Actual del Modelo RUL\n\n| Parámetro | Valor |\n|-----------|-------|\n| **Estado** | 🟡 MODERADO |\n| **Horas restantes estimadas** | **299 horas** |\n| **Degradación acumulada** | **40%** |\n| **Acción recomendada** | Planificar mantenimiento |\n\n---\n\n### 📈 Ventana de Intervención Estimada\n\nCon **299 horas restantes**, la intervención debería planificarse en:\n\n| Referencia | Estimación |\n|------------|------------|\n| **Días continuos (24/7)** | ~12.5 días |\n| **Semanas (24/7)** | ~2 semanas |\n| **Días laborables (8h/día)** | ~37 días |\n\n---\n\n### ⚠️ Contexto de Riesgo Adicional\n\n> Recordar que MOTOR-001 presenta una **temperatura de rodamiento de 74°C** frente a un nominal de 52°C (+42%), lo que podría **acelerar la degradación** más allá de lo estimado por el modelo RUL.\n\n| Indicador | Estado |\n|-----------|--------|\n| **Degradación RUL** | 🟡 40% acumulado |\n| **Temperatura rodamiento** | 🔴 +22°C sobre nominal |\n| **Riesgo combinado** | 🔴 **Mayor al indicado por RUL** |\n\n---\n\n### 🔧 Recomendaciones\n\n**Planificación Preventiva:**\n1. ✅ **Programar intervención** antes de las 299 horas estimadas\n2. ✅ **Preparar repuestos** con anticipación\n3. ✅ **Investigar la causa** de la temperatura elevada **de forma inmediata**, ya que puede reducir significativamente las horas restantes reales\n4. ✅ **Intensificar frecuencia** de monitoreo dado el estado moderado\n\n**Monitoreo Continuo:**\n1. 🔧 **Actualizar estimación RUL** tras resolver el problema de temperatura\n2. 🔧 **Verificar lubricación** del rodamiento como causa prioritaria\n3. 🔧 Cruzar datos RUL con **tendencia de temperatura y vibración**\n\n---\n\n### 📋 Conclusión\n\n| Aspecto | Evaluación |\n|---------|------------|\n| **Degradación acumulada** | 🟡 40% |\n| **Vida útil restante** | 🟡 ~299 horas |\n| **Urgencia real** | 🔴 **Alta** por temperatura elevada confirmada |\n| **Acción recomendada** | 📅 **Planificar intervención inmediata** |\n\n> 💡 **No espere las 299 horas.** La temperatura elevada detectada previamente en MOTOR-001 representa un factor de riesgo adicional que puede acelerar la degradación real del equipo más allá de lo estimado por el modelo.\n\n¿Desea orientación sobre las actividades específicas de mantenimiento a programar?",
+      "agent_used": "rul_analyst",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.75,
+        "hallucination_flag": true,
+        "accuracy": 4,
+        "notes": "La respuesta cubre correctamente degradación acumulada (40%) y horas restantes (299h), coincidiendo con los reference points principales. Sin embargo, no proporciona una fecha estimada de intervención concreta (solo estimaciones relativas en días/semanas desde 'ahora', sin fecha calendario), lo cual es un punto de referencia esperado. Además, introduce datos de temperatura de rodamiento (74°C vs 52°C nominal) que no estaban en la pregunta ni se confirma que provengan de una fuente verificada en este contexto, lo que podría ser una extrapolación no solicitada explícitamente, aunque podría estar basada en contexto previo de la conversación. La estructura es clara y bien organizada, con recomendaciones coherentes, pero la falta de fecha concreta y la posible información no verificada reducen la precisión total."
+      }
+    },
+    {
+      "id": "q014",
+      "query": "Si la PUMP-002 falla de forma no planificada, ¿cuál sería el costo económico estimado de la reparación y el tiempo de inactividad?",
+      "category": "impacto_economico",
+      "agent_expected": "economic_analyst",
+      "timestamp": "2026-07-06T16:36:51.380747+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Análisis de Coste de Fallo No Planificado - PUMP-002\n\n### ⚠️ Información No Disponible en el Contexto\n\nLo siento, pero **el contexto proporcionado no contiene información sobre costos económicos de reparación ni tiempos de inactividad para PUMP-002** ni para ningún otro equipo de la planta.\n\n---\n\n### 📚 Lo que Sí Indica el Contexto Disponible\n\nEl contexto proporcionado contiene únicamente:\n\n**Sobre rodamientos SKF:**\n- Un error común es suponer que si un rodamiento falló fue por **insuficiente capacidad de carga**, lo cual lleva a costosas adaptaciones innecesarias [1]\n- Para rodamientos pequeños muy sucios, **es más económico descartarlos y reemplazarlos** que limpiarlos [3]\n- Los rodamientos raramente alcanzan su vida útil calculada debido a condiciones de funcionamiento no ideales [1]\n\n**Sobre motores de baja tensión:**\n- Información sobre configuración constructiva IM B5 y patas de apoyo [2]\n\n> ⚠️ **Ninguno de estos fragmentos contiene datos económicos específicos** para PUMP-002.\n\n---\n\n### 📋 Recomendaciones para Obtener Esta Información\n\nPara estimar el costo real de un fallo no planificado en PUMP-002, se recomienda consultar:\n\n1. 📊 **Sistema ERP/CMMS de la planta** (SAP, Maximo, etc.) para:\n   - Historial de costos de reparaciones previas\n   - Costo de repuestos y mano de obra\n   - Tiempo promedio de reparación (MTTR)\n\n2. 📋 **Documentación interna de la planta:**\n   - Registro de costos de paradas no planificadas\n   - Contratos de mantenimiento vigentes\n\n3. 💰 **Variables económicas a considerar:**\n   - Costo de repuestos (rodamientos, sellos, etc.)\n   - Mano de obra de reparación\n   - Costo de producción perdida por hora\n   - Penalizaciones contractuales por parada\n\n---\n\n### 🚨 Conclusión\n\n> **No es posible estimar el costo económico** de un fallo no planificado en PUMP-002 con la información disponible en el contexto actual. Se recomienda consultar el **sistema CMMS de la planta** y el **historial de mantenimiento** del equipo para obtener datos precisos.\n\n¿Desea analizar algún otro aspecto técnico de PUMP-002 con la información disponible?",
+      "agent_used": "doc_expert",
+      "cached": true,
+      "sources": [
+        {
+          "index": 1,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": -4.4991
+        },
+        {
+          "index": 2,
+          "source": "instrucciones_motor_baja-tension.pdf",
+          "page": "",
+          "rerank_score": -5.4314
+        },
+        {
+          "index": 3,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": -7.0029
+        }
+      ],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.9,
+        "hallucination_flag": false,
+        "accuracy": 3,
+        "notes": "El agente reconoce correctamente que el contexto no contiene datos económicos específicos de PUMP-002 y evita inventar cifras, lo cual es honesto y evita alucinación. Sin embargo, no cubre los reference points esperados (costo de reparación, costo de parada, producción perdida, impacto total en USD/MXN) de forma cuantitativa ni ofrece una estimación aproximada basada en supuestos razonables, que sería más útil. La respuesta es técnicamente correcta pero incompleta respecto a lo que se esperaba, ya que se limita a señalar la ausencia de datos sin intentar una estimación aproximada o marco de cálculo."
+      }
+    },
+    {
+      "id": "q015",
+      "query": "¿Cuánto me ahorraría hacer mantenimiento preventivo en COMP-001 esta semana en lugar de esperar a que falle?",
+      "category": "impacto_economico",
+      "agent_expected": "economic_analyst",
+      "timestamp": "2026-07-06T16:37:02.644042+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Análisis de Ahorro por Mantenimiento Preventivo - COMP-001\n\n### ⚠️ Información No Disponible\n\nEl contexto proporcionado indica explícitamente:\n\n> *\"No se encontró documentación relevante\"*\n\nPor lo tanto, **no puedo calcular el ahorro económico específico** de realizar mantenimiento preventivo en COMP-001 esta semana frente a esperar un fallo.\n\n---\n\n### 📋 ¿Qué Información Sería Necesaria?\n\nPara realizar este cálculo, se necesitaría disponer de:\n\n| Dato Requerido | Descripción |\n|----------------|-------------|\n| 💰 **Costo mantenimiento preventivo** | Repuestos + mano de obra planificada |\n| 💸 **Costo reparación correctiva** | Repuestos de emergencia + mano de obra urgente |\n| ⏱️ **Costo por hora de inactividad** | Producción perdida × precio unitario |\n| 📉 **MTTR** | Tiempo medio de reparación no planificada |\n| 📊 **Historial de fallos** | Costos de eventos previos similares |\n\n---\n\n### 💡 Recomendación\n\nPara obtener esta estimación, consulte:\n\n1. ✅ El **sistema CMMS/ERP de la planta** (SAP, Maximo, etc.)\n2. ✅ El **historial de costos** de mantenimiento de COMP-001\n3. ✅ El **departamento de finanzas** para el costo de inactividad por hora\n\n---\n\n> ¿Desea que analice el estado técnico actual de COMP-001 con los datos de sensores disponibles?",
+      "agent_used": "synthesizer",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.9,
+        "hallucination_flag": false,
+        "accuracy": 3,
+        "notes": "La respuesta reconoce correctamente la falta de datos concretos y evita inventar cifras, lo cual es apropiado y evita alucinaciones. Menciona COMP-001 y aborda conceptualmente la comparación preventivo vs correctivo, listando los costos necesarios (preventivo, correctivo, inactividad, MTTR, historial), cubriendo así varios reference_points de forma indirecta. Sin embargo, no ofrece ninguna estimación aproximada, rango típico de la industria, ni un cálculo ilustrativo que ayude al usuario, por lo que la utilidad práctica es limitada. Es una respuesta honesta y bien fundamentada, pero solo parcialmente completa respecto al objetivo de calcular el ahorro."
+      }
+    },
+    {
+      "id": "q016",
+      "query": "Crea una orden de trabajo urgente para inspeccionar los rodamientos de MOTOR-001 con prioridad crítica.",
+      "category": "orden_trabajo",
+      "agent_expected": "work_order_creator",
+      "timestamp": "2026-07-06T16:37:23.137292+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Solicitud de Orden de Trabajo - MOTOR-001\n\n### ⚠️ Limitación del Sistema\n\nEl contexto proporcionado indica explícitamente:\n\n> *\"No se encontró documentación relevante\"*\n\n**Este sistema está diseñado para consultas técnicas de mantenimiento** basadas en documentación disponible. **No tiene capacidad para crear, emitir ni registrar órdenes de trabajo** en ningún sistema de gestión.\n\n---\n\n### 📋 ¿Cómo Crear Esta Orden de Trabajo?\n\nPara emitir la orden de trabajo urgente, diríjase a:\n\n| Canal | Acción |\n|-------|--------|\n| 🖥️ **Sistema CMMS** (SAP PM, Maximo, etc.) | Crear OT con prioridad crítica |\n| 📞 **Supervisor de mantenimiento** | Notificación inmediata verbal |\n| 📝 **Formulario interno de planta** | OT manual si el sistema no está disponible |\n\n---\n\n### 💡 Información Técnica de Apoyo\n\nLo que **sí puedo aportarle** como base técnica para la orden:\n\n**Justificación técnica documentada de MOTOR-001:**\n\n| Parámetro | Valor | Estado |\n|-----------|-------|--------|\n| **Temperatura rodamiento** | 74°C vs 52°C nominal | 🔴 +42% sobre nominal |\n| **Degradación RUL** | 40% acumulada | 🟡 Estado moderado |\n| **Horas restantes estimadas** | ~299 horas | 🟡 Planificar urgente |\n\n---\n\n> ¿Desea orientación técnica sobre qué inspeccionar en los rodamientos de MOTOR-001?",
+      "agent_used": "synthesizer",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.55,
+        "hallucination_flag": false,
+        "accuracy": 2,
+        "notes": "El agente no crea la orden de trabajo ni genera un ID, que era el objetivo central de la solicitud (referencia esperada: 'orden de trabajo creada', 'ID de la orden'). En su lugar, declara una limitación del sistema y redirige a otros canales, lo cual es coherente y transparente pero no cumple la tarea solicitada. Aporta datos técnicos (temperatura, RUL, horas restantes) que parecen consistentes con el contexto de monitoreo de MOTOR-001, sin inventar cifras extrañas, por lo que no hay señales claras de alucinación. Sin embargo, al no completar la acción principal (crear la OT con prioridad crítica para inspección de rodamientos), la precisión frente a los reference_points es baja-parcial."
+      }
+    },
+    {
+      "id": "q017",
+      "query": "¿Qué órdenes de trabajo están abiertas actualmente para la PUMP-001 y en qué estado se encuentran?",
+      "category": "orden_trabajo",
+      "agent_expected": "synthesizer",
+      "timestamp": "2026-07-06T16:37:43.299401+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Consulta de Órdenes de Trabajo - PUMP-001\n\n### ⚠️ Información No Disponible\n\nEl contexto proporcionado **no contiene información sobre órdenes de trabajo** abiertas o en cualquier estado para PUMP-001.\n\nLos documentos disponibles en el contexto actual son:\n\n| Fuente | Contenido |\n|--------|-----------|\n| 📄 **manual_mantenimiento_rodamientos_SKF.pdf** | Procedimientos de montaje de soportes y reacondicionamiento de rodamientos [1][3] |\n| 📄 **instrucciones_motor_baja-tension.pdf** | Reglas de seguridad para trabajos eléctricos (5 reglas EN 50110-1) [2] |\n\n> ⚠️ **Ninguno de estos documentos contiene registros de órdenes de trabajo.**\n\n---\n\n### 📋 Por Qué No Puedo Responder Esta Pregunta\n\n| Dato Necesario | Disponible |\n|----------------|------------|\n| Órdenes de trabajo abiertas PUMP-001 | ❌ No disponible |\n| Estado actual de cada OT | ❌ No disponible |\n| Técnico asignado | ❌ No disponible |\n| Fecha de apertura/cierre | ❌ No disponible |\n| Sistema CMMS integrado | ❌ Sin acceso |\n\n---\n\n### 📋 Recomendaciones\n\nPara consultar las órdenes de trabajo activas de PUMP-001:\n\n1. 📊 Acceder directamente a su **sistema CMMS** (SAP PM, Maximo, MP9, etc.)\n2. 📋 Consultar al **supervisor de mantenimiento** responsable del equipo\n3. 🔍 Revisar el **tablero de control de OTs** del departamento de mantenimiento\n\n---\n\n### 🚨 Conclusión\n\n> **No es posible responder esta pregunta** con el contexto disponible. Este sistema no tiene acceso a registros de órdenes de trabajo. Consulte su **sistema de gestión de mantenimiento (CMMS)** para obtener el estado actualizado de las OTs de PUMP-001.\n\n¿Desea analizar algún aspecto técnico de PUMP-001 con la información disponible?",
+      "agent_used": "doc_expert",
+      "cached": true,
+      "sources": [
+        {
+          "index": 1,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": -0.0868
+        },
+        {
+          "index": 2,
+          "source": "instrucciones_motor_baja-tension.pdf",
+          "page": "",
+          "rerank_score": -0.9516
+        },
+        {
+          "index": 3,
+          "source": "manual_mantenimiento_rodamientos_SKF.pdf",
+          "page": "",
+          "rerank_score": -2.0984
+        }
+      ],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.95,
+        "hallucination_flag": false,
+        "accuracy": 4,
+        "notes": "El agente reconoce correctamente que el contexto disponible (manuales técnicos) no contiene información sobre órdenes de trabajo, evitando inventar datos. No cubre los reference_points específicos (estado, prioridad, asignado a) porque genuinamente no existe esa información en el contexto, lo cual es la respuesta correcta y honesta. La respuesta es transparente sobre las limitaciones y ofrece alternativas razonables (CMMS, supervisor). Se penaliza levemente en accuracy porque idealmente podría haber sido más concisa, pero es técnicamente precisa y evita alucinación."
+      }
+    },
+    {
+      "id": "q018",
+      "query": "Dame un resumen ejecutivo del estado actual de la planta: equipos críticos, alertas abiertas y riesgo económico.",
+      "category": "resumen_operativo",
+      "agent_expected": "synthesizer",
+      "timestamp": "2026-07-06T16:37:52.826447+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Resumen Ejecutivo del Estado de Planta\n\n### ⚠️ Limitación Importante\n\nEl contexto proporcionado indica explícitamente:\n\n> *\"No se encontró documentación relevante\"*\n\n**No es posible generar un resumen ejecutivo completo** de la planta con la información disponible actualmente. Sin embargo, puedo consolidar los datos analizados durante esta sesión.\n\n---\n\n### 📊 Estado Consolidado de Equipos - Sesión Actual\n\n| Equipo | Temperatura | Corriente | Degradación RUL | Horas Restantes | Riesgo |\n|--------|-------------|-----------|-----------------|-----------------|--------|\n| **MOTOR-001** | 🔴 74°C (+42%) | N/D | 🟡 40% | ~299h | 🔴 **ALTO** |\n| **MOTOR-002** | N/D | 🔴 145% nominal | N/D | N/D | 🔴 **ALTO** |\n| **PUMP-001** | N/D | N/D | 🟢 38% | ~310h | 🟡 **MODERADO** |\n| **COMP-001** | N/D | N/D | N/D | N/D | 🟢 **BAJO** |\n\n> ⚠️ **Datos parciales** basados únicamente en consultas realizadas durante esta sesión. No representan el estado completo de la planta.\n\n---\n\n### 🚨 Alertas Críticas Identificadas\n\n**1. MOTOR-001 — Temperatura de Rodamiento Crítica**\n- Temperatura actual **74°C vs 52°C nominal** (+42%)\n- Degradación acumulada **40%** con ~299 horas restantes\n- Causa probable: **fallo en sistema de lubricación**\n- Acción: ⚠️ **Inspección inmediata requerida**\n\n**2. MOTOR-002 — Sobrecarga Eléctrica Severa**\n- Corriente al **145% del nominal durante 2 horas continuas**\n- Riesgo de **daño térmico en bobinado**\n- Causa probable: **sobrecarga mecánica o fallo eléctrico**\n- Acción: ⚠️ **Intervención inmediata requerida**\n\n---\n\n### 💰 Riesgo Económico\n\n| Aspecto | Estado |\n|---------|--------|\n| Costos de reparación | ❌ No disponible en contexto |\n| Costo por hora de inactividad | ❌ No disponible en contexto |\n| Estimación de ahorro preventivo | ❌ No disponible en contexto |\n\n> ⚠️ **No es posible cuantificar el riesgo económico** con el contexto disponible. Consulte su sistema CMMS/ERP para datos financieros.\n\n---\n\n### 📋 Para un Resumen Ejecutivo Completo\n\nSe necesitaría acceso a:\n\n1. 📊 **Datos en tiempo real** de todos los equipos de la planta\n2. 💰 **Sistema ERP/CMMS** con costos de mantenimiento y producción\n3. 📋 **Registro completo de alertas** abiertas del sistema SCADA\n4. 📈 **Historial de fallos** y tendencias de degradación de toda la flota\n\n---\n\n### 🎯 Conclusión\n\n> Con los datos disponibles en esta sesión, los equipos de **mayor prioridad de intervención** son **MOTOR-002** (sobrecarga eléctrica activa) y **MOTOR-001** (temperatura crítica + degradación moderada). Para un resumen ejecutivo completo y con riesgo económico cuantificado, es necesario integrar este sistema con su **plataforma CMMS/ERP**.\n\n¿Desea profundizar en el análisis técnico de alguno de los equipos identificados como críticos?",
+      "agent_used": "synthesizer",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.7,
+        "hallucination_flag": false,
+        "accuracy": 3,
+        "notes": "El agente reconoce correctamente la falta de documentación base y evita inventar cifras de riesgo económico, lo cual es honesto. Sin embargo, presenta datos de equipos (MOTOR-001, MOTOR-002, PUMP-001, COMP-001) con valores específicos (74°C, 145%, 40% degradación, 299h) que no están respaldados por el contexto citado ('No se encontró documentación relevante'), lo que genera inconsistencia: por un lado dice no tener datos, por otro presenta tablas detalladas con métricas precisas. No cubre 'número de equipos críticos' de forma agregada clara, no cuantifica riesgo económico en USD (aunque lo justifica), y la recomendación prioritaria sí aparece pero de forma parcial. Falta una visión de salud global de planta consolidada. La estructura es útil pero mezcla transparencia con datos no verificables del contexto proporcionado."
+      }
+    },
+    {
+      "id": "q019",
+      "query": "Si tuviera que priorizar una intervención de mantenimiento esta semana con recursos limitados, ¿qué máquina debería atender primero y por qué?",
+      "category": "decision_apoyo",
+      "agent_expected": "synthesizer",
+      "timestamp": "2026-07-06T16:38:25.698707+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Priorización de Intervención - Recursos Limitados\n\n### 📊 Basado en Datos Analizados en Esta Sesión\n\n> ⚠️ **Nota:** La recomendación siguiente se basa **únicamente en los datos discutidos durante esta conversación**, no en un análisis completo de la planta. El contexto actual no aporta información adicional.\n\n---\n\n### 🥇 Prioridad #1: MOTOR-002\n\n**Razón principal: Riesgo de fallo inmediato activo**\n\n| Parámetro | Valor | Riesgo |\n|-----------|-------|--------|\n| **Corriente** | 145% del nominal | 🔴 Crítico |\n| **Duración sobrecarga** | +2 horas continuas | 🔴 Crítico |\n| **Riesgo térmico bobinado** | Daño irreversible inminente | 🔴 Crítico |\n| **Datos RUL disponibles** | No disponibles | ⚠️ Sin visibilidad |\n\n> 🔴 **Una sobrecarga sostenida al 145% durante más de 2 horas representa el riesgo de fallo más inmediato e irreversible identificado.** El daño al bobinado de un motor es significativamente más costoso que cualquier otra intervención preventiva.\n\n---\n\n### 🥈 Prioridad #2: MOTOR-001\n\n**Razón principal: Temperatura crítica + degradación confirmada**\n\n| Parámetro | Valor | Riesgo |\n|-----------|-------|--------|\n| **Temperatura rodamiento** | 74°C vs 52°C nominal (+42%) | 🔴 Crítico |\n| **Degradación RUL** | 40% acumulada | 🟡 Moderado |\n| **Horas restantes estimadas** | ~299 horas | 🟡 Moderado |\n| **Riesgo combinado** | Temperatura acelera degradación real | 🔴 Alto |\n\n> 🔴 **La temperatura elevada no atendida puede reducir drásticamente las 299 horas estimadas**, haciendo que el modelo RUL sea optimista frente a la realidad.\n\n---\n\n### 🥉 Prioridad #3: PUMP-001\n\n**Razón principal: Degradación moderada con ventana planificable**\n\n| Parámetro | Valor | Riesgo |\n|-----------|-------|--------|\n| **Degradación RUL** | 38% acumulada | 🟡 Moderado |\n| **Horas restantes estimadas** | ~310 horas | 🟢 Planificable |\n| **Urgencia** | Baja — puede programarse | 🟢 Controlado |\n\n---\n\n### 🎯 Resumen de Priorización\n\n```\n🔴 MOTOR-002  →  Intervención INMEDIATA (hoy)\n🔴 MOTOR-001  →  Intervención URGENTE (esta semana)\n🟡 PUMP-001   →  Intervención PLANIFICADA (próximas 2 semanas)\n🟢 COMP-001   →  Monitoreo rutinario\n```\n\n---\n\n### ⚠️ Limitaciones de Esta Recomendación\n\n| Limitación | Impacto |\n|------------|---------|\n| Datos parciales de la flota | Pueden existir equipos más críticos no consultados |\n| Sin datos económicos | No se puede cuantificar el impacto financiero |\n| Sin historial de fallos | No se conoce la frecuencia de fallos previos |\n| Contexto actual sin información | Recomendación basada solo en datos de sesión |\n\n---\n\n> 💡 **Conclusión:** Con recursos limitados, **MOTOR-002 debe ser la intervención inmediata** por representar el único equipo con una condición de fallo activa y en curso. **MOTOR-001** debe atenderse a continuación dado que su temperatura elevada",
+      "agent_used": "synthesizer",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.55,
+        "hallucination_flag": true,
+        "accuracy": 3,
+        "notes": "La respuesta está bien estructurada y ofrece una priorización lógica (MOTOR-002 > MOTOR-001 > PUMP-001), con justificación basada en riesgo térmico y degradación. Sin embargo, introduce datos específicos (145% corriente, +2 horas, 74°C, 40% degradación, 299 horas RUL, 38% PUMP-001) que no se confirman en el contexto proporcionado, lo cual sugiere posible fabricación de cifras no verificadas explícitamente en la conversación citada. No aborda impacto económico de forma cuantitativa (lo reconoce como limitación, lo cual es honesto), y menciona 'probabilidad de fallo' solo indirectamente vía riesgo térmico. Cubre parcialmente los reference points: máquina de mayor riesgo (sí), vida útil restante (sí, RUL), justificación (sí, detallada), pero probabilidad de fallo explícita y impacto económico cuantificado están ausentes o solo mencionados como limitación. La transparencia sobre limitaciones es un punto positivo que reduce el riesgo de alucinación percibida, pero los valores numéricos exactos sin fuente clara elevan el riesgo de datos inventados."
+      }
+    },
+    {
+      "id": "q020",
+      "query": "¿Qué máquinas tienen alertas críticas activas y cuáles son sus probabilidades de fallo actuales?",
+      "category": "resumen_operativo",
+      "agent_expected": "sensor_analyst",
+      "timestamp": "2026-07-06T16:39:02.674924+00:00",
+      "session_id": "2108a43a-70cc-474a-8479-6b66683a12ab",
+      "response": "## Consulta de Alertas Críticas - Flota Completa\n\n### ⚠️ Limitación del Sistema de Predicción\n\nEl sistema de predicción ha devuelto el siguiente error:\n\n> *\"No se encontró un ID de máquina en la consulta. Menciona el ID de la máquina (ej. COMP-001, MOTOR-001, PUMP-002).\"*\n\nEsto significa que **el sistema requiere consultas individuales por equipo** y no permite consultas globales de toda la flota simultáneamente.\n\n---\n\n### 📋 Cómo Obtener Esta Información\n\nPara obtener las alertas críticas y probabilidades de fallo de todos los equipos, deberá consultarlos **uno por uno**:\n\n| Equipo | Consulta Sugerida |\n|--------|-------------------|\n| **COMP-001** | *\"¿Cuál es el estado y probabilidad de fallo de COMP-001?\"* |\n| **MOTOR-001** | *\"¿Cuál es el estado y probabilidad de fallo de MOTOR-001?\"* |\n| **MOTOR-002** | *\"¿Cuál es el estado y probabilidad de fallo de MOTOR-002?\"* |\n| **PUMP-001** | *\"¿Cuál es el estado y probabilidad de fallo de PUMP-001?\"* |\n| **PUMP-002** | *\"¿Cuál es el estado y probabilidad de fallo de PUMP-002?\"* |\n\n---\n\n### 💡 Datos Ya Disponibles en Esta Sesión\n\nBasándome en consultas previas de esta conversación:\n\n| Equipo | Probabilidad Fallo | Degradación | Estado |\n|--------|-------------------|-------------|--------|\n| **MOTOR-001** | N/D | 🟡 40% | 🔴 Temp. crítica |\n| **MOTOR-002** | 🟢 0.0% | N/D | 🔴 Sobrecarga activa |\n| **PUMP-001** | N/D | 🟢 38% | 🟡 Moderado |\n| **COMP-001** | N/D | N/D | N/D |\n| **PUMP-002** | N/D | N/D | N/D |\n\n> ⚠️ **Datos incompletos** — Se recomienda consultar cada equipo individualmente para obtener un panorama completo.\n\n---\n\n> ¿Desea que le ayude a analizar cada equipo de forma individual?",
+      "agent_used": "sensor_analyst",
+      "cached": false,
+      "sources": [],
+      "error": null,
+      "judgment": {
+        "groundedness": 0.55,
+        "hallucination_flag": false,
+        "accuracy": 3,
+        "notes": "El agente reconoce la limitación del sistema (requiere consulta individual) y no inventa datos, usando solo información de consultas previas en la sesión, lo cual es honesto. Sin embargo, no cubre completamente los reference_points: falta severidad explícita de las alertas, acción recomendada concreta ante alertas críticas, y no logra dar una respuesta consolidada de probabilidades de fallo (mayoría 'N/D'). La tabla ayuda a estructurar la información pero la respuesta es parcial y depende de que el usuario haga más consultas, sin resolver directamente la pregunta original sobre alertas críticas activas."
+      }
+    }
+  ]
+}

@@ -58,4 +58,4 @@ Thumbs.db
 # Documentos de portfolio / planificación (locales)
 ROADMAP.md
 AMIA_Proyecto_Portfolio_Industrial.md
-docs/
+docs/*.pdf

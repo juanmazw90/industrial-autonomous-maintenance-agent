@@ -16,6 +16,7 @@ from langgraph.graph import END, StateGraph
 
 from .agents.doc_expert import make_doc_expert_node
 from .agents.economic_analyst import make_economic_analyst_node
+from .agents.instrumentation import instrument_async_tool, instrument_node, instrument_tool
 from .agents.rul_analyst import make_rul_analyst_node
 from .agents.sensor_analyst import make_sensor_analyst_node
 from .agents.state import AMIAState
@@ -83,30 +84,36 @@ def build_graph(
     """Construye y compila el grafo. Se llama una vez al arrancar la app."""
     if retriever is None:
         retriever = Retriever(config)
-    search_fn = build_search_tool(retriever)
+    search_fn = instrument_async_tool("search_documentation")(build_search_tool(retriever))
 
     graph = StateGraph(AMIAState)
 
     # ── Nodos base ────────────────────────────────────────────────────────────
-    graph.add_node("supervisor",  supervisor_node)
-    graph.add_node("doc_expert",  make_doc_expert_node(search_fn))
-    graph.add_node("synthesizer", synthesizer_node)
+    graph.add_node("supervisor",  instrument_node("supervisor")(supervisor_node))
+    graph.add_node("doc_expert",  instrument_node("doc_expert")(make_doc_expert_node(search_fn)))
+    graph.add_node("synthesizer", instrument_node("synthesizer")(synthesizer_node))
 
     if predictor is not None:
-        predict_fn     = build_predict_failure_tool(predictor)
-        predict_rca_fn = build_predict_rca_tool(rca_predictor) if rca_predictor is not None else None
-        graph.add_node("sensor_analyst", make_sensor_analyst_node(predict_fn, predict_rca_fn))
+        predict_fn = instrument_tool("predict_failure")(build_predict_failure_tool(predictor))
+        predict_rca_fn = (
+            instrument_tool("predict_rca")(build_predict_rca_tool(rca_predictor))
+            if rca_predictor is not None
+            else None
+        )
+        graph.add_node("sensor_analyst", instrument_node("sensor_analyst")(
+            make_sensor_analyst_node(predict_fn, predict_rca_fn)
+        ))
 
     # ── Nodos V3/V4 (siempre registrados) ────────────────────────────────────
     if cmms is None:
         cmms = CMMS()
-    graph.add_node("economic_analyst",   make_economic_analyst_node())
-    graph.add_node("work_order_creator", make_work_order_creator_node(cmms))
+    graph.add_node("economic_analyst",   instrument_node("economic_analyst")(make_economic_analyst_node()))
+    graph.add_node("work_order_creator", instrument_node("work_order_creator")(make_work_order_creator_node(cmms)))
 
     if rul_predictor is None:
         rul_predictor = RULPredictor()
-    predict_rul_fn = build_predict_rul_tool(rul_predictor)
-    graph.add_node("rul_analyst", make_rul_analyst_node(predict_rul_fn))
+    predict_rul_fn = instrument_tool("predict_rul")(build_predict_rul_tool(rul_predictor))
+    graph.add_node("rul_analyst", instrument_node("rul_analyst")(make_rul_analyst_node(predict_rul_fn)))
 
     # ── Aristas ───────────────────────────────────────────────────────────────
     graph.set_entry_point("supervisor")

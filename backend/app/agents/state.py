@@ -3,6 +3,7 @@ from typing import TypedDict
 
 class AMIAState(TypedDict):
     # Input
+    session_id: str                     # propagated from /process_input; used by instrumentation
     query: str
     conversation_history: list[dict]   # [{"role": "user", "content": "..."}]
 

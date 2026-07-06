@@ -13,6 +13,7 @@ dependencies = [
     "pyarrow>=15.0",
     "mlflow>=2.12",
     "amia-shared",
+    "evidently>=0.7.21",
 ]
 
 [project.scripts]
