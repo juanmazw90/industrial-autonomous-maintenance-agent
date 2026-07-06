@@ -131,7 +131,13 @@ async def judge_response(
         timeout=60.0,
     )
     resp.raise_for_status()
-    raw = resp.json()["content"][0]["text"]
+    raw = resp.json()["content"][0]["text"].strip()
+    # Strip markdown code fences if present
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
     return json.loads(raw)
 
 
@@ -143,6 +149,7 @@ async def register_evaluation(
     question_id: str,
     client: httpx.AsyncClient,
 ) -> None:
+    """Registra la evaluación en la BD — falla silenciosamente si el agent_run_id no existe."""
     payload = {
         "agent_run_id":      agent_run_id,
         "accuracy":          (judgment["accuracy"] - 1) / 4,   # 1-5 → 0.0-1.0
@@ -158,8 +165,8 @@ async def register_evaluation(
             timeout=15.0,
         )
         resp.raise_for_status()
-    except Exception as e:
-        print(f"    ⚠️  No se pudo registrar en la API: {e}")
+    except Exception:
+        pass  # agent_run_id de golden set no está en la BD; los scores se guardan en JSON
 
 
 # ── Runner ────────────────────────────────────────────────────────────────────

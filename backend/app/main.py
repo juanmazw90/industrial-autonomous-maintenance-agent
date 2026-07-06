@@ -46,6 +46,7 @@ from .services.semantic_cache import SemanticCache
 # ── Langfuse (opcional — activo cuando LANGFUSE_PUBLIC_KEY está en el entorno) ──
 try:
     from langfuse import Langfuse as _Langfuse
+    from langfuse.langchain import CallbackHandler as _LangfuseCallbackHandler
     _LANGFUSE_ENABLED = bool(os.getenv("LANGFUSE_PUBLIC_KEY"))
     _langfuse: "_Langfuse | None" = (
         _Langfuse(
@@ -59,6 +60,7 @@ try:
 except Exception:
     _LANGFUSE_ENABLED = False
     _langfuse = None
+    _LangfuseCallbackHandler = None  # type: ignore[assignment,misc]
 
 
 configure_logging()
@@ -238,36 +240,30 @@ async def process_input(user_input: InputQuery) -> dict:
         }
 
     # ── LangGraph invocation ──────────────────────────────────────────────
-    lf_trace = (
-        _langfuse.trace(name="amia.process_input", input={"query": user_input.query, "session_id": user_input.session_id})
-        if _langfuse
-        else None
-    )
+    lf_callbacks = [_LangfuseCallbackHandler()] if (_langfuse and _LangfuseCallbackHandler) else []
     try:
-        result = await graph.ainvoke({
-            "session_id":           user_input.session_id,
-            "query":                user_input.query,
-            "conversation_history": history,
-            "retrieved_docs":       [],
-            "sensor_analysis":      None,
-            "rul_prediction":       None,
-            "economic_impact":      None,
-            "work_order":           None,
-            "next_agent":           "",
-            "final_response":       "",
-            "sources":              [],
-        })
+        result = await graph.ainvoke(
+            {
+                "session_id":           user_input.session_id,
+                "query":                user_input.query,
+                "conversation_history": history,
+                "retrieved_docs":       [],
+                "sensor_analysis":      None,
+                "rul_prediction":       None,
+                "economic_impact":      None,
+                "work_order":           None,
+                "next_agent":           "",
+                "final_response":       "",
+                "sources":              [],
+            },
+            config={"callbacks": lf_callbacks},
+        )
     except Exception as e:
-        if lf_trace:
-            lf_trace.update(level="ERROR", status_message=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
     agent_used = result.get("next_agent", "unknown")
     response   = result["final_response"]
     sources    = result["sources"]
-
-    if lf_trace:
-        lf_trace.update(output={"agent_used": agent_used, "response": response[:500]})
 
     store.append_turn(user_input.session_id, user_input.query, response)
 
@@ -302,10 +298,7 @@ async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
             return
 
         # ── LangGraph astream_events ──────────────────────────────────────────
-        lf_trace = (
-            _langfuse.trace(name="amia.process_input.stream", input={"query": user_input.query, "session_id": user_input.session_id})
-            if _langfuse else None
-        )
+        lf_callbacks = [_LangfuseCallbackHandler()] if (_langfuse and _LangfuseCallbackHandler) else []
 
         accumulated = ""
         agent_used  = "synthesizer"
@@ -327,6 +320,7 @@ async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
                     "sources":              [],
                 },
                 version="v2",
+                config={"callbacks": lf_callbacks},
             ):
                 kind = event["event"]
 
@@ -355,16 +349,11 @@ async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
                                 await asyncio.sleep(0.018)
 
         except Exception as e:
-            if lf_trace:
-                lf_trace.update(level="ERROR", status_message=str(e))
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
 
         store.append_turn(user_input.session_id, user_input.query, accumulated)
         await sem_cache.set(user_input.query, accumulated, sources, agent_used)
-
-        if lf_trace:
-            lf_trace.update(output={"agent_used": agent_used, "response": accumulated[:500]})
 
         yield f"data: {json.dumps({'type': 'done', 'agent_used': agent_used, 'sources': sources, 'cached': False, 'session_id': user_input.session_id})}\n\n"
 
