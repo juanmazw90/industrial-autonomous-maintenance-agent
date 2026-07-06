@@ -4,7 +4,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-load_dotenv()
+from pathlib import Path as _Path
+# Ruta explícita: sube desde backend/app/ hasta la raíz del repo donde vive .env
+load_dotenv(_Path(__file__).resolve().parents[2] / ".env", override=True)
 
 import json
 

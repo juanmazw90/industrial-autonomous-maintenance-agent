@@ -104,7 +104,7 @@ services:
     ports:
       - "3001:3000"
     environment:
-      DATABASE_URL: postgresql://amia:amia_dev@postgres:5432/amia
+      DATABASE_URL: postgresql://amia:amia_dev@postgres:5432/langfuse
       NEXTAUTH_SECRET: dev_secret_changeme
       NEXTAUTH_URL: http://localhost:3001
       SALT: dev_salt_changeme
