@@ -2,12 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api, type OperationsSummary, type RULPrediction } from "@/lib/api";
+import { useOperationsSummary } from "@/lib/hooks";
 import { fmt, fmtTs } from "@/lib/utils";
+import { SkeletonBlock, Tile } from "@/components/ui";
 import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  TrendingUp,
+  Cpu,
   Wrench,
   DollarSign,
   Timer,
@@ -21,37 +23,6 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-
-// ── KPI tile ──────────────────────────────────────────────────────────────────
-
-function Tile({
-  label,
-  value,
-  sub,
-  color = "text-gray-100",
-  icon: Icon,
-  pulse,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  color?: string;
-  icon?: React.ElementType;
-  pulse?: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5 bg-gray-900/60 border border-gray-800 rounded-xl px-5 py-4 min-w-0">
-      <div className="flex items-center gap-2 text-xs text-gray-500 uppercase tracking-wider">
-        {Icon && <Icon size={12} className="shrink-0" />}
-        {label}
-      </div>
-      <p className={`text-3xl font-bold tabular-nums leading-none ${color} ${pulse ? "animate-pulse" : ""}`}>
-        {value}
-      </p>
-      {sub && <p className="text-xs text-gray-600">{sub}</p>}
-    </div>
-  );
-}
 
 // ── Alert severity row ────────────────────────────────────────────────────────
 
@@ -234,20 +205,16 @@ function RULSection() {
 
 function Skeleton() {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-pulse">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       {[...Array(8)].map((_, i) => (
-        <div key={i} className="h-24 rounded-xl bg-gray-800/50" />
+        <SkeletonBlock key={i} className="h-24" />
       ))}
     </div>
   );
 }
 
 export default function DashboardPage() {
-  const { data, isLoading, error, dataUpdatedAt } = useQuery({
-    queryKey: ["operations-summary"],
-    queryFn: api.operations.summary,
-    refetchInterval: 15_000,
-  });
+  const { data, isLoading, error, dataUpdatedAt } = useOperationsSummary();
 
   return (
     <div className="px-8 py-8 max-w-6xl">
@@ -356,15 +323,5 @@ export default function DashboardPage() {
       {/* Row 3: RUL */}
       <RULSection />
     </div>
-  );
-}
-
-function Cpu({ size, className }: { size: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <rect x="9" y="9" width="6" height="6" />
-      <path d="M15 2v2M9 2v2M15 20v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2" />
-    </svg>
   );
 }

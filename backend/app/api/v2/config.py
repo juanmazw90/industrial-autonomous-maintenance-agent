@@ -12,7 +12,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, model_validator
 
-from app.domain import audit, config as cfg
+from app.domain import audit
+from app.domain import config as cfg
 
 router = APIRouter(prefix="/api/v2/config", tags=["config"])
 
@@ -22,7 +23,7 @@ class ConfigPatch(BaseModel):
     updates: dict[str, Any]
 
     @model_validator(mode="after")
-    def validate_keys(self) -> "ConfigPatch":
+    def validate_keys(self) -> ConfigPatch:
         allowed_prefixes = ("llm.", "rag.", "thresholds.")
         invalid = [k for k in self.updates if not any(k.startswith(p) for p in allowed_prefixes)]
         if invalid:

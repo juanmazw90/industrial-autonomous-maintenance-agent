@@ -10,7 +10,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 10_000,
-            refetchInterval: 15_000,
+            // Sin polling global: cada página define su refetchInterval según
+            // lo volátil que sea su dato (dashboard 15s, monitoring 30s, etc.).
+            // Un default agresivo aquí genera tráfico constante en páginas estáticas.
+            refetchInterval: 60_000,
+            refetchIntervalInBackground: false,
             retry: 1,
           },
         },

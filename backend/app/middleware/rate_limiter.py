@@ -15,7 +15,8 @@ _DEFAULT_WINDOW = 60   # seconds
 
 
 class RateLimitMiddleware:
-    def __init__(self, app, redis_url: str = "redis://localhost:6379", limit: int = _DEFAULT_LIMIT, window: int = _DEFAULT_WINDOW):
+    def __init__(self, app, redis_url: str = "redis://localhost:6379",
+                 limit: int = _DEFAULT_LIMIT, window: int = _DEFAULT_WINDOW):
         self.app    = app
         self._redis = aioredis.from_url(redis_url, decode_responses=True)
         self._limit  = limit

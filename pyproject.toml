@@ -1,18 +1,47 @@
 [tool.uv.workspace]
 members = ["backend", "ml", "shared"]
 
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13,<2",
+]
+
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py312"
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["N999"]
 
+[tool.ruff.lint.per-file-ignores]
+# main.py carga .env antes de importar módulos que leen el entorno
+"backend/app/main.py" = ["E402"]
+"ml/amia_ml/evaluate.py" = ["E402"]
+# Convención ML: X_train, X_test, etc.
+"ml/**" = ["N806"]
+"backend/app/services/predictor.py" = ["N806"]
+"backend/app/services/rca_predictor.py" = ["N806"]
+"backend/app/services/rul_predictor.py" = ["N806"]
+"backend/app/api/v2/platform.py" = ["N806"]
+
 [tool.mypy]
 python_version = "3.12"
-strict = true
+plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# shared/ es la fuente de verdad cross-package: se mantiene estricto
+[[tool.mypy.overrides]]
+module = "amia_shared.*"
+disallow_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

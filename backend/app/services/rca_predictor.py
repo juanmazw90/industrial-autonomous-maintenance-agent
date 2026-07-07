@@ -18,6 +18,7 @@ Diferencia vs FailurePredictor:
 from __future__ import annotations
 
 import json
+import tempfile
 import warnings
 from collections import deque
 from pathlib import Path
@@ -27,125 +28,11 @@ import mlflow.xgboost
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from amia_shared.features import BUFFER_SIZE, SENSORS, build_features_single
+
+from .feature_store import FeatureBundle, load_feature_bundle
 
 warnings.filterwarnings("ignore")
-
-SENSORS = [
-    "vibration_rms",
-    "vibration_peak",
-    "temperature_bearing",
-    "temperature_motor",
-    "pressure_discharge",
-    "speed_rpm",
-]
-WINDOWS        = {"8h": 8, "24h": 24}
-BASELINE_HOURS = 168
-BUFFER_SIZE    = 50
-
-LEAKAGE_COLS     = ["failure_mode", "is_failure", "degradation_fraction", "rul_hours"]
-META_COLS        = ["timestamp", "machine_id", "machine_type"]
-MACHINE_TYPE_MAP = {"compressor": 0, "induction_motor": 1, "centrifugal_pump": 2}
-
-
-# ── Feature engineering sobre múltiples máquinas (inicialización) ─────────────
-
-def _add_rolling_stats(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_mean_{label}"] = grp.transform(lambda x: x.rolling(w, min_periods=2).mean())
-            out[f"{sensor}_std_{label}"]  = grp.transform(lambda x: x.rolling(w, min_periods=2).std())
-            out[f"{sensor}_max_{label}"]  = grp.transform(lambda x: x.rolling(w, min_periods=2).max())
-            out[f"{sensor}_kurt_{label}"] = grp.transform(lambda x: x.rolling(w, min_periods=4).kurt())
-    return out
-
-
-def _linear_slope(arr: np.ndarray) -> float:
-    mask = ~np.isnan(arr)
-    if mask.sum() < 2:
-        return np.nan
-    x = np.arange(len(arr))
-    return float(np.polyfit(x[mask], arr[mask], 1)[0])
-
-
-def _add_trend_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_slope_{label}"] = grp.transform(
-                lambda x: x.rolling(w, min_periods=2).apply(_linear_slope, raw=True)
-            )
-    return out
-
-
-def _add_delta_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        out[f"{sensor}_delta_1h"]  = grp.transform(lambda x: x.diff(1))
-        out[f"{sensor}_delta_8h"]  = grp.transform(lambda x: x.diff(8))
-        out[f"{sensor}_delta_24h"] = grp.transform(lambda x: x.diff(24))
-        out[f"{sensor}_accel"]     = grp.transform(lambda x: x.diff(1).diff(1))
-    return out
-
-
-def _add_cross_sensor_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    out["current_imbalance"]    = out[["current_phase_a", "current_phase_b", "current_phase_c"]].std(axis=1)
-    out["temp_per_rpm"]         = out["temperature_bearing"] / out["speed_rpm"].replace(0, np.nan)
-    out["vibro_thermal_stress"] = out["vibration_rms"] * out["temperature_bearing"]
-    out["temp_ratio"]           = out["temperature_bearing"] / out["temperature_motor"].replace(0, np.nan)
-    out["current_mean"]         = out[["current_phase_a", "current_phase_b", "current_phase_c"]].mean(axis=1)
-    return out
-
-
-def _add_baseline_normalization(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        baseline = out.groupby("machine_id")[sensor].transform(
-            lambda x: x.iloc[:BASELINE_HOURS].mean()
-        )
-        out[f"{sensor}_vs_baseline"] = out[sensor] - baseline
-    return out
-
-
-def _build_features(df: pd.DataFrame) -> pd.DataFrame:
-    df = _add_rolling_stats(df)
-    df = _add_trend_features(df)
-    df = _add_delta_features(df)
-    df = _add_cross_sensor_features(df)
-    df = _add_baseline_normalization(df)
-    df["machine_type_enc"] = df["machine_type"].map(MACHINE_TYPE_MAP)
-    return df
-
-
-# ── Feature engineering sobre una sola máquina (actualización en tiempo real) ──
-
-def _build_features_single(buf: pd.DataFrame, baselines: dict[str, float]) -> pd.DataFrame:
-    out = buf.copy()
-    for sensor in SENSORS:
-        s = out[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_mean_{label}"]  = s.rolling(w, min_periods=2).mean()
-            out[f"{sensor}_std_{label}"]   = s.rolling(w, min_periods=2).std()
-            out[f"{sensor}_max_{label}"]   = s.rolling(w, min_periods=2).max()
-            out[f"{sensor}_kurt_{label}"]  = s.rolling(w, min_periods=4).kurt()
-            out[f"{sensor}_slope_{label}"] = s.rolling(w, min_periods=2).apply(_linear_slope, raw=True)
-        out[f"{sensor}_delta_1h"]  = s.diff(1)
-        out[f"{sensor}_delta_8h"]  = s.diff(8)
-        out[f"{sensor}_delta_24h"] = s.diff(24)
-        out[f"{sensor}_accel"]     = s.diff(1).diff(1)
-        out[f"{sensor}_vs_baseline"] = s - baselines.get(sensor, s.mean())
-
-    out["current_imbalance"]    = out[["current_phase_a", "current_phase_b", "current_phase_c"]].std(axis=1)
-    out["temp_per_rpm"]         = out["temperature_bearing"] / out["speed_rpm"].replace(0, np.nan)
-    out["vibro_thermal_stress"] = out["vibration_rms"] * out["temperature_bearing"]
-    out["temp_ratio"]           = out["temperature_bearing"] / out["temperature_motor"].replace(0, np.nan)
-    out["current_mean"]         = out[["current_phase_a", "current_phase_b", "current_phase_c"]].mean(axis=1)
-    out["machine_type_enc"]     = out["machine_type"].map(MACHINE_TYPE_MAP)
-    return out
 
 
 # ── RCAPredictor ──────────────────────────────────────────────────────────────
@@ -161,7 +48,9 @@ class RCAPredictor:
         self._baselines: dict[str, dict[str, float]] = {}
         self.initialized: bool = False
 
-    def initialize(self, mlflow_uri: str, data_path: Path) -> None:
+    def initialize(
+        self, mlflow_uri: str, data_path: Path, bundle: FeatureBundle | None = None
+    ) -> None:
         print("[RCAPredictor] Iniciando...")
         mlflow.set_tracking_uri(mlflow_uri)
 
@@ -175,7 +64,7 @@ class RCAPredictor:
             raise RuntimeError("No se encontró ninguna versión de amia-rca-model en MLflow.")
         run_id = latest_versions[0].run_id
 
-        artifact_dir = client.download_artifacts(run_id, "inference", "/tmp/amia_rca_inference")
+        artifact_dir = client.download_artifacts(run_id, "inference", tempfile.mkdtemp(prefix="amia_rca_inference_"))
         with open(f"{artifact_dir}/rca_feature_cols.json") as f:
             self.feature_cols = json.load(f)
         with open(f"{artifact_dir}/rca_class_map.json") as f:
@@ -185,16 +74,10 @@ class RCAPredictor:
         print(f"[RCAPredictor] {len(self.feature_cols)} features | clases: {self.class_names}")
 
         print("[RCAPredictor] Construyendo features para todas las máquinas...")
-        df = pd.read_parquet(data_path)
-        df = df.sort_values(["machine_id", "timestamp"]).reset_index(drop=True)
-
-        for sensor in SENSORS:
-            self._baselines[sensor] = {}
-            for mid in df["machine_id"].unique():
-                vals = df.loc[df["machine_id"] == mid, sensor]
-                self._baselines[sensor][mid] = float(vals.iloc[:BASELINE_HOURS].mean())
-
-        df_feat = _build_features(df)
+        if bundle is None:
+            bundle = load_feature_bundle(data_path)
+        df, df_feat = bundle.raw, bundle.features
+        self._baselines = bundle.baselines
 
         for mid in df_feat["machine_id"].unique():
             rows = df_feat[df_feat["machine_id"] == mid]
@@ -246,7 +129,7 @@ class RCAPredictor:
         self._buffers[machine_id].append(reading)
         buf_df = pd.DataFrame(list(self._buffers[machine_id]))
         machine_baselines = {s: self._baselines[s].get(machine_id, 0.0) for s in SENSORS}
-        feat_df = _build_features_single(buf_df, machine_baselines)
+        feat_df = build_features_single(buf_df, machine_baselines)
 
         self._latest_features[machine_id] = feat_df.iloc[-1]
         self._latest_timestamps[machine_id] = str(reading.get("timestamp", ""))

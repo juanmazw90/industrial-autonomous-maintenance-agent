@@ -1,13 +1,17 @@
 {
   "venvPath": ".",
   "venv": ".venv",
-  "include": ["backend", "ml", "shared"],
+  "include": [
+    "backend",
+    "ml",
+    "shared"
+  ],
   "exclude": [
     "scripts",
     "**/node_modules",
     "**/__pycache__",
     "data"
   ],
-  "pythonVersion": "3.13",
+  "pythonVersion": "3.12",
   "typeCheckingMode": "basic"
 }

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import warnings
 from pathlib import Path
 
@@ -19,6 +20,7 @@ import mlflow.xgboost
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from amia_shared.features import build_features, compute_baselines
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 warnings.filterwarnings("ignore")
@@ -30,23 +32,12 @@ MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{REPO_ROOT / 'mlflow.d
 EXPERIMENT_NAME = "amia-rul-prediction"
 MODEL_NAME      = "amia-rul-model"
 
-SENSORS = [
-    "vibration_rms",
-    "vibration_peak",
-    "temperature_bearing",
-    "temperature_motor",
-    "pressure_discharge",
-    "speed_rpm",
-]
-WINDOWS        = {"8h": 8, "24h": 24}
-SPLIT_DATE     = pd.Timestamp("2024-11-01")
-BASELINE_HOURS = 168
-MAX_RUL_HOURS  = 500.0   # coincide con MAX_RUL_HORIZON del generator
+# Feature engineering: pipeline compartido en amia_shared.features
+SPLIT_DATE    = pd.Timestamp("2024-11-01")
+MAX_RUL_HOURS = 500.0   # coincide con MAX_RUL_HORIZON del generator
 
 LEAKAGE_COLS = ["failure_mode", "is_failure", "degradation_fraction", "rul_hours"]
 META_COLS    = ["timestamp", "machine_id", "machine_type"]
-
-MACHINE_TYPE_MAP = {"compressor": 0, "induction_motor": 1, "centrifugal_pump": 2}
 
 HPARAMS = {
     "n_estimators":      500,
@@ -66,66 +57,6 @@ HPARAMS = {
 }
 
 
-# ── Feature engineering ───────────────────────────────────────────────────────
-
-def _linear_slope(arr: np.ndarray) -> float:
-    mask = ~np.isnan(arr)
-    if mask.sum() < 2:
-        return np.nan
-    x = np.arange(len(arr))
-    return float(np.polyfit(x[mask], arr[mask], 1)[0])
-
-
-def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-    out = df.copy()
-
-    print("1/4  Rolling stats (mean / std / max / kurt × 8h y 24h)...")
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_mean_{label}"] = grp.transform(lambda x: x.rolling(w, min_periods=2).mean())
-            out[f"{sensor}_std_{label}"]  = grp.transform(lambda x: x.rolling(w, min_periods=2).std())
-            out[f"{sensor}_max_{label}"]  = grp.transform(lambda x: x.rolling(w, min_periods=2).max())
-            out[f"{sensor}_kurt_{label}"] = grp.transform(lambda x: x.rolling(w, min_periods=4).kurt())
-
-    print("2/4  Tendencias (pendiente lineal) y deltas...")
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_slope_{label}"] = grp.transform(
-                lambda x: x.rolling(w, min_periods=2).apply(_linear_slope, raw=True)
-            )
-        out[f"{sensor}_delta_1h"]  = grp.transform(lambda x: x.diff(1))
-        out[f"{sensor}_delta_8h"]  = grp.transform(lambda x: x.diff(8))
-        out[f"{sensor}_delta_24h"] = grp.transform(lambda x: x.diff(24))
-        out[f"{sensor}_accel"]     = grp.transform(lambda x: x.diff(1).diff(1))
-
-    print("3/4  Cross-sensor features...")
-    out["current_imbalance"]    = out[["current_phase_a", "current_phase_b", "current_phase_c"]].std(axis=1)
-    out["temp_per_rpm"]         = out["temperature_bearing"] / out["speed_rpm"].replace(0, np.nan)
-    out["vibro_thermal_stress"] = out["vibration_rms"] * out["temperature_bearing"]
-    out["temp_ratio"]           = out["temperature_bearing"] / out["temperature_motor"].replace(0, np.nan)
-    out["current_mean"]         = out[["current_phase_a", "current_phase_b", "current_phase_c"]].mean(axis=1)
-
-    print("4/4  Baseline normalization por máquina...")
-    baselines: dict[str, dict[str, float]] = {}
-    for sensor in SENSORS:
-        sensor_baselines = (
-            out.groupby("machine_id")[sensor]
-            .apply(lambda x: x.iloc[:BASELINE_HOURS].mean())
-            .to_dict()
-        )
-        baselines[sensor] = sensor_baselines
-        baseline_series = out.groupby("machine_id")[sensor].transform(
-            lambda x: x.iloc[:BASELINE_HOURS].mean()
-        )
-        out[f"{sensor}_vs_baseline"] = out[sensor] - baseline_series
-
-    out["machine_type_enc"] = out["machine_type"].map(MACHINE_TYPE_MAP)
-    print(f"     Shape final: {out.shape}")
-    return out, baselines
-
-
 # ── Training entrypoint ───────────────────────────────────────────────────────
 
 def train() -> None:
@@ -137,7 +68,8 @@ def train() -> None:
     df = pd.read_parquet(DATA_PATH)
     df = df.sort_values(["machine_id", "timestamp"]).reset_index(drop=True)
 
-    df_feat, baselines = build_features(df.copy())
+    df_feat = build_features(df.copy())  # incluye machine_type_enc
+    baselines = compute_baselines(df)
 
     feature_cols = [c for c in df_feat.columns if c not in LEAKAGE_COLS + META_COLS]
 
@@ -160,6 +92,7 @@ def train() -> None:
 
     print(f"\nTrain: {len(X_train):,} filas  |  Test: {len(X_test):,} filas")
 
+    _artifacts_dir = tempfile.mkdtemp(prefix="amia_artifacts_")
     with mlflow.start_run() as run:
         print(f"\nMLflow run_id: {run.info.run_id}")
 
@@ -195,17 +128,17 @@ def train() -> None:
         print(f"{'='*50}")
 
         # ── Log artifacts ─────────────────────────────────────────────────────
-        feature_cols_path = "/tmp/rul_feature_cols.json"
+        feature_cols_path = os.path.join(_artifacts_dir, "rul_feature_cols.json")
         with open(feature_cols_path, "w") as f:
             json.dump(feature_cols, f, indent=2)
         mlflow.log_artifact(feature_cols_path, artifact_path="inference")
 
-        baselines_path = "/tmp/rul_baselines.json"
+        baselines_path = os.path.join(_artifacts_dir, "rul_baselines.json")
         with open(baselines_path, "w") as f:
             json.dump(baselines, f, indent=2)
         mlflow.log_artifact(baselines_path, artifact_path="inference")
 
-        thresholds_path = "/tmp/rul_thresholds.json"
+        thresholds_path = os.path.join(_artifacts_dir, "rul_thresholds.json")
         with open(thresholds_path, "w") as f:
             json.dump({
                 "max_rul_hours":   MAX_RUL_HOURS,
@@ -221,7 +154,7 @@ def train() -> None:
             .sort_values(ascending=False)
             .rename("importance")
         )
-        fi_path = "/tmp/rul_feature_importances.csv"
+        fi_path = os.path.join(_artifacts_dir, "rul_feature_importances.csv")
         importances.to_csv(fi_path, header=True)
         mlflow.log_artifact(fi_path)
 
@@ -235,7 +168,7 @@ def train() -> None:
 
         print(f"\nModelo registrado como '{MODEL_NAME}' en MLflow.")
         print(f"Run ID: {run.info.run_id}")
-        print(f"\nTop 10 features:")
+        print("\nTop 10 features:")
         print(importances.head(10).round(4).to_string())
 
 

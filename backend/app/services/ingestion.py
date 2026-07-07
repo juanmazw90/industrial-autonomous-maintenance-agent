@@ -10,6 +10,7 @@ la llama con run_in_executor para no bloquear el event loop.
 
 import hashlib
 import uuid
+from functools import cached_property
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -19,7 +20,6 @@ from qdrant_client.models import Distance, PointStruct, VectorParams
 from sentence_transformers import SentenceTransformer
 
 from .rag_config import Chunk, Document, RAGConfig
-
 
 # ---------------------------------------------------------------------------
 # Parsers de documentos
@@ -85,17 +85,26 @@ def parse_document(content: bytes, filename: str) -> Document:
 class IngestionPipeline:
     def __init__(self, config: RAGConfig):
         self.config = config
-        self.embedder = SentenceTransformer(config.embedding_model)
-        self.qdrant = QdrantClient(host=config.qdrant_host, port=config.qdrant_port)
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=config.chunk_size,
             chunk_overlap=config.overlap_size,
             separators=["\n\n", "\n", ". ", " ", ""],
         )
-        self._ensure_collection()
+        self._collection_ready = False
+
+    # Carga perezosa: construir el pipeline no descarga modelos ni toca Qdrant
+    @cached_property
+    def embedder(self) -> SentenceTransformer:
+        return SentenceTransformer(self.config.embedding_model)
+
+    @cached_property
+    def qdrant(self) -> QdrantClient:
+        return QdrantClient(host=self.config.qdrant_host, port=self.config.qdrant_port)
 
     def _ensure_collection(self) -> None:
-        """Crea la colección en Qdrant si no existe."""
+        """Crea la colección en Qdrant si no existe (una sola vez)."""
+        if self._collection_ready:
+            return
         existing = [c.name for c in self.qdrant.get_collections().collections]
         if self.config.collection_name not in existing:
             self.qdrant.create_collection(
@@ -105,6 +114,7 @@ class IngestionPipeline:
                     distance=Distance.COSINE,
                 ),
             )
+        self._collection_ready = True
 
     def chunk_document(self, doc: Document) -> list[Chunk]:
         texts = self.splitter.split_text(doc.content)
@@ -148,6 +158,7 @@ class IngestionPipeline:
 
     def ingest(self, doc: Document) -> int:
         """Procesa un Document completo y lo almacena en Qdrant. Devuelve nº de chunks."""
+        self._ensure_collection()
         chunks = self.chunk_document(doc)
         chunks = self.embed_chunks(chunks)
         self.store_chunks(chunks)

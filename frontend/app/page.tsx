@@ -2,82 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { streamMessage, type Source } from "@/lib/streaming";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface Source {
-  index: number;
-  source: string;
-  page?: string | number;
-  rerank_score: number;
-}
-
 interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
   agentUsed?: string;
   streaming?: boolean;
-}
-
-// ── Streaming fetch ────────────────────────────────────────────────────────
-
-async function streamMessage(
-  query: string,
-  sessionId: string,
-  onToken: (fullText: string) => void,
-): Promise<{ agentUsed: string; sources: Source[]; cached: boolean }> {
-  const res = await fetch("http://localhost:8000/process_input/stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, session_id: sessionId }),
-  });
-
-  if (!res.ok || !res.body) throw new Error(`Error ${res.status}`);
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let fullText = "";
-  let agentUsed = "synthesizer";
-  let sources: Source[] = [];
-  let cached = false;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-
-      // Parse JSON separately so parse errors don't swallow token errors
-      let msg: Record<string, unknown>;
-      try {
-        msg = JSON.parse(line.slice(6));
-      } catch {
-        continue;
-      }
-
-      if (msg.type === "token") {
-        fullText += msg.content as string;
-        onToken(fullText);
-        // Yield to the browser so React can render and paint before the next token
-        await new Promise<void>(resolve => { requestAnimationFrame(() => resolve()); });
-      } else if (msg.type === "done") {
-        agentUsed = (msg.agent_used as string) ?? agentUsed;
-        sources   = (msg.sources   as Source[]) ?? [];
-        cached    = (msg.cached    as boolean)  ?? false;
-      } else if (msg.type === "error") {
-        throw new Error(msg.message as string);
-      }
-    }
-  }
-
-  return { agentUsed, sources, cached };
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -173,6 +108,7 @@ const STREAMING_ID = "__streaming__";
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
+      id: "greeting",
       role: "assistant",
       content:
         "Hola. Soy AMIA, tu agente de mantenimiento industrial. Puedo responder preguntas sobre manuales, procedimientos y diagnóstico de equipos. ¿En qué puedo ayudarte?",
@@ -203,8 +139,8 @@ export default function ChatPage() {
     // Add user message + empty streaming placeholder
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: query },
-      { role: "assistant", content: "", streaming: true },
+      { id: crypto.randomUUID(), role: "user", content: query },
+      { id: crypto.randomUUID(), role: "assistant", content: "", streaming: true },
     ]);
 
     try {
@@ -224,7 +160,7 @@ export default function ChatPage() {
       setMessages((prev) =>
         prev.map((m) =>
           m.streaming
-            ? { role: "assistant", content: m.content, sources, agentUsed, streaming: false }
+            ? { ...m, sources, agentUsed, streaming: false }
             : m
         )
       );
@@ -261,9 +197,9 @@ export default function ChatPage() {
       </header>
 
       {/* Messages */}
-      <main className="flex-1 overflow-y-auto px-4 py-6 space-y-5">
-        {messages.map((msg, i) => (
-          <ChatMessage key={i} msg={msg} />
+      <main className="flex-1 overflow-y-auto px-4 py-6 space-y-5" aria-live="polite">
+        {messages.map((msg) => (
+          <ChatMessage key={msg.id} msg={msg} />
         ))}
 
         {error && (

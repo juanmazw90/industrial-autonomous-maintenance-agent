@@ -13,6 +13,7 @@ Uso:
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
 import mlflow
@@ -36,22 +37,12 @@ RESULTS_DIR = REPO_ROOT / "data/evaluation"
 
 mlflow.set_tracking_uri(MLFLOW_URI)
 
-# Importar las funciones reales de feature engineering de cada script de entrenamiento.
-# Cada script tiene su propia `build_features()` — se importan con alias para evitar colisión.
-import importlib.util as _ilu
-import sys as _sys
+# Feature engineering: pipeline compartido (idéntico a entrenamiento e inferencia)
+from amia_shared.features import build_features
 
-def _import_build_features(script_name: str):
-    path = Path(__file__).parent / script_name
-    spec = _ilu.spec_from_file_location(script_name.replace(".py",""), path)
-    mod  = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.build_features
-
-
-_MACHINE_TYPE_MAP = {"compressor": 0, "induction_motor": 1, "centrifugal_pump": 2}
 _SPLIT_DATE       = pd.Timestamp("2024-11-01")
-_CLASS_MAP        = {c: i for i, c in enumerate(sorted(["bearing_wear", "cavitation", "electrical_failure", "misalignment", "overheating"]))}
+_FAILURE_MODES    = ["bearing_wear", "cavitation", "electrical_failure", "misalignment", "overheating"]
+_CLASS_MAP        = {c: i for i, c in enumerate(sorted(_FAILURE_MODES))}
 _CLASS_NAMES      = [k for k, _ in sorted(_CLASS_MAP.items(), key=lambda x: x[1])]
 
 
@@ -59,12 +50,6 @@ def _load_data() -> pd.DataFrame:
     df = pd.read_parquet(DATA_PATH)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     return df.sort_values("timestamp").reset_index(drop=True)
-
-
-def _add_type_enc(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df["machine_type_enc"] = df["machine_type"].map(_MACHINE_TYPE_MAP)
-    return df
 
 
 def _test_mask(df: pd.DataFrame) -> pd.Series:
@@ -78,7 +63,7 @@ def _download_inference_dir(model_name: str, tmp_prefix: str) -> tuple:
     model    = mlflow.xgboost.load_model(f"models:/{model_name}/latest")
     versions = client.search_model_versions(f"name='{model_name}'")
     run_id   = versions[0].run_id
-    art_dir  = client.download_artifacts(run_id, "inference", f"/tmp/{tmp_prefix}")
+    art_dir  = client.download_artifacts(run_id, "inference", tempfile.mkdtemp(prefix=tmp_prefix))
     return model, art_dir
 
 
@@ -90,12 +75,10 @@ def evaluate_failure() -> dict:
     with open(f"{art_dir}/feature_cols.json") as f:
         feature_cols = json.load(f)
     with open(f"{art_dir}/optimal_threshold.json") as f:
-        threshold = json.load(f).get("optimal", 0.5)
+        threshold = json.load(f).get("threshold", 0.5)
 
-    build_fp_features = _import_build_features("train_failure_prediction.py")
     df_raw = _load_data()
-    df_feat, _ = build_fp_features(df_raw)
-    df_feat = _add_type_enc(df_feat)
+    df_feat = build_features(df_raw)  # incluye machine_type_enc
     # Crear target igual que en train(): rolling 24h forward sobre is_failure
     df_feat["label"] = (
         df_feat.groupby("machine_id")["is_failure"]
@@ -134,10 +117,8 @@ def evaluate_rca() -> dict:
         class_map = json.load(f)    # {class_name: int_index}
     class_names  = [k for k, _ in sorted(class_map.items(), key=lambda x: x[1])]
 
-    build_rca_features = _import_build_features("train_rca.py")
     df_raw  = _load_data()
-    df_feat = build_rca_features(df_raw)
-    df_feat = _add_type_enc(df_feat)
+    df_feat = build_features(df_raw)  # incluye machine_type_enc
     # Igual que train_rca.py: mapear a int y filtrar solo las 5 clases reales
     df_feat["rca_label"] = df_feat["failure_mode"].map(class_map)
     df_rca  = df_feat[df_feat["rca_label"].notna()].copy()
@@ -180,12 +161,11 @@ def evaluate_rul() -> dict:
 
     with open(f"{art_dir}/rul_feature_cols.json") as f:
         feature_cols = json.load(f)
-    with open(f"{art_dir}/rul_baselines.json") as f:
+    with open(f"{art_dir}/rul_thresholds.json") as f:
         max_rul = json.load(f).get("max_rul_hours", 500)
 
-    build_rul_features = _import_build_features("train_rul.py")
     df_raw  = _load_data()
-    df_feat, _ = build_rul_features(df_raw)
+    df_feat = build_features(df_raw)
     # Solo filas etiquetadas (rul_hours no nulo), split por fecha
     labeled = df_feat[df_feat["rul_hours"].notna()].copy()
     test    = labeled.loc[_test_mask(labeled)].copy()

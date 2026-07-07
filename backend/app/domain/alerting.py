@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 import structlog
@@ -36,7 +36,7 @@ AlertStatus = Literal["new", "acknowledged", "assigned", "resolved"]
 _VALID_TRANSITIONS: dict[AlertStatus, list[AlertStatus]] = {
     "new":          ["acknowledged", "resolved"],
     "acknowledged": ["assigned", "resolved"],
-    "assigned":     ["in_progress", "resolved"],  # in_progress not in DB enum, fall through
+    "assigned":     ["resolved"],
     "resolved":     [],
 }
 
@@ -60,7 +60,7 @@ async def evaluate_predictions() -> int:
     Returns the number of new alerts created.
     """
     failure_threshold = await _get_threshold("thresholds.failure", 0.85)
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+    cutoff = datetime.now(UTC) - timedelta(minutes=10)
 
     new_alerts = 0
     try:
@@ -161,14 +161,14 @@ async def transition(
             )
             return None
 
-        alert.status = new_status  # type: ignore[assignment]
+        alert.status = new_status
 
         if new_status == "acknowledged" and actor_id:
             alert.acknowledged_by = actor_id
         if new_status == "assigned" and assigned_to:
             alert.assigned_to = assigned_to
         if new_status == "resolved":
-            alert.resolved_at = datetime.now(timezone.utc)
+            alert.resolved_at = datetime.now(UTC)
 
         await db.commit()
         await db.refresh(alert)

@@ -1,0 +1,29 @@
+# Contexto de build de Docker — excluye todo lo pesado/irrelevante.
+.git/
+.venv/
+**/__pycache__/
+**/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+
+# Datos y experimentos (se montan como volúmenes, no se hornean en la imagen)
+data/
+mlruns/
+mlflow.db
+backend/mlflow.db
+qdrant_storage/
+
+# Entorno y docs locales
+.env
+.env.*
+backend/.env
+docs/
+Arquitectura/
+*.md
+.claude/
+.DS_Store

@@ -1,9 +1,7 @@
 """Tests Etapa 0.3 — logging estructurado + correlation_id."""
 from __future__ import annotations
 
-import pytest
 import structlog
-
 from app.observability.logging import configure_logging
 
 

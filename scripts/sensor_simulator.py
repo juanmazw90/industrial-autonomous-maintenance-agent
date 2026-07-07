@@ -79,10 +79,10 @@ def run(
         resp = httpx.get(f"{backend_url}/health", timeout=5)
         health = resp.json()
         if not health.get("predictor_ready"):
-            print(f"\n❌ El predictor no está listo. ¿Arrancaste el backend?")
+            print("\n❌ El predictor no está listo. ¿Arrancaste el backend?")
             print("   Ejecuta: uv run uvicorn app.main:app --app-dir backend --port 8000")
             sys.exit(1)
-        print(f"Backend:    ✅ OK (predictor listo)\n")
+        print("Backend:    ✅ OK (predictor listo)\n")
     except httpx.ConnectError:
         print(f"\n❌ No se puede conectar a {backend_url}")
         print("   Ejecuta: uv run uvicorn app.main:app --app-dir backend --port 8000")
@@ -126,7 +126,8 @@ def run(
                         "vibration_peak":      float(row["vibration_peak"]),
                         "temperature_bearing": float(row["temperature_bearing"]),
                         "temperature_motor":   float(row["temperature_motor"]),
-                        "pressure_discharge":  float(row["pressure_discharge"]) if pd.notna(row.get("pressure_discharge")) else None,
+                        "pressure_discharge":  (float(row["pressure_discharge"])
+                                                if pd.notna(row.get("pressure_discharge")) else None),
                         "current_phase_a":     float(row["current_phase_a"]),
                         "current_phase_b":     float(row["current_phase_b"]),
                         "current_phase_c":     float(row["current_phase_c"]),

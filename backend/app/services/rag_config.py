@@ -10,6 +10,7 @@ Pregunta → Embedding → Búsqueda (top 20) → Reranker (top 3) → LLM → R
 from dataclasses import dataclass, field
 from enum import Enum
 
+from app.infra.settings import settings
 
 # Estrategias de chunking
 
@@ -21,14 +22,14 @@ class ChunkStrategy(Enum):
 
 
 @dataclass
-class RAGConfig():
+class RAGConfig:
     # Configuración general
     embedding_dim: int = 384
     embedding_model: str = "all-MiniLM-L6-v2"
 
     # Configuración de chunking
 
-    chunk_strategy:ChunkStrategy = ChunkStrategy.RECURSIVE 
+    chunk_strategy:ChunkStrategy = ChunkStrategy.RECURSIVE
     chunk_size: int = 500  # caracteres
     overlap_size: int = 50  # caracteres
 
@@ -49,23 +50,23 @@ class RAGConfig():
     cache_enabled: bool = True
     cache_ttl: int = 3600  # segundos
 
-    # Qdrant
+    # Qdrant — defaults desde settings (única fuente de verdad)
 
-    qdrant_host: str = "localhost"
-    qdrant_port: int = 6333
+    qdrant_host: str = field(default_factory=lambda: settings.qdrant_host)
+    qdrant_port: int = field(default_factory=lambda: settings.qdrant_port)
     collection_name: str = "documents"
 
 
 
 @dataclass
-class Document():
+class Document:
     content: str
     metadata: dict = field(default_factory=dict)
     doc_id: str = ""
 
 
 @dataclass
-class Chunk():
+class Chunk:
     text: str = ""
     metadata: dict = field(default_factory=dict)
     chunk_id: str = ""

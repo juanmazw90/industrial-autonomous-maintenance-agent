@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type WorkOrder, type WorkOrderStatus, type WorkOrderPriority } from "@/lib/api";
 import { fmt, fmtTs } from "@/lib/utils";
 import { Plus, X, AlertCircle, ChevronRight, Wrench } from "lucide-react";
@@ -159,26 +159,42 @@ function CreateModal({ onClose }: { onClose: () => void }) {
     });
   }
 
+  // Accesibilidad: cerrar con Escape y foco inicial en el primer campo
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    firstFieldRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const inp = "bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-indigo-700 w-full";
 
   return (
     <div className="fixed inset-0 bg-gray-950/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg space-y-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wo-modal-title"
+        className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg space-y-4"
+      >
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-200">Nueva Orden de Trabajo</h3>
-          <button onClick={onClose} className="text-gray-600 hover:text-gray-300"><X size={16} /></button>
+          <h3 id="wo-modal-title" className="text-sm font-semibold text-gray-200">Nueva Orden de Trabajo</h3>
+          <button onClick={onClose} aria-label="Cerrar" className="text-gray-600 hover:text-gray-300"><X size={16} /></button>
         </div>
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Código de Máquina *</label>
-              <input className={inp} placeholder="PUMP-001" value={form.machine_code}
+              <label htmlFor="wo-machine" className="text-xs text-gray-500 mb-1 block">Código de Máquina *</label>
+              <input id="wo-machine" ref={firstFieldRef} className={inp} placeholder="PUMP-001" value={form.machine_code}
                 onChange={(e) => setForm({ ...form, machine_code: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Prioridad</label>
-              <select className={inp + " cursor-pointer"} value={form.priority}
+              <label htmlFor="wo-priority" className="text-xs text-gray-500 mb-1 block">Prioridad</label>
+              <select id="wo-priority" className={inp + " cursor-pointer"} value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}>
                 <option value="critical">Crítico</option>
                 <option value="high">Alto</option>
@@ -188,19 +204,19 @@ function CreateModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Título *</label>
-            <input className={inp} placeholder="Inspección y lubricación de rodamientos" value={form.title}
+            <label htmlFor="wo-title" className="text-xs text-gray-500 mb-1 block">Título *</label>
+            <input id="wo-title" className={inp} placeholder="Inspección y lubricación de rodamientos" value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Descripción</label>
-            <textarea className={inp + " resize-none"} rows={2} placeholder="Detalles opcionales…"
+            <label htmlFor="wo-desc" className="text-xs text-gray-500 mb-1 block">Descripción</label>
+            <textarea id="wo-desc" className={inp + " resize-none"} rows={2} placeholder="Detalles opcionales…"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Costo Estimado (USD)</label>
-            <input className={inp} type="number" min={0} step={0.01} placeholder="0.00"
+            <label htmlFor="wo-cost" className="text-xs text-gray-500 mb-1 block">Costo Estimado (USD)</label>
+            <input id="wo-cost" className={inp} type="number" min={0} step={0.01} placeholder="0.00"
               value={form.estimated_cost}
               onChange={(e) => setForm({ ...form, estimated_cost: e.target.value })} />
           </div>
@@ -239,10 +255,17 @@ export default function WorkOrdersPage() {
     refetchInterval: 20_000,
   });
 
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
+
   const advanceMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: WorkOrderStatus }) =>
       api.workOrders.update(id, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["work-orders"] }),
+    onSuccess: () => {
+      setAdvanceError(null);
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+    },
+    onError: (err) =>
+      setAdvanceError(err instanceof Error ? err.message : "No se pudo actualizar la orden"),
   });
 
   const allOrders = data?.work_orders ?? [];
@@ -286,6 +309,10 @@ export default function WorkOrdersPage() {
           </button>
         </div>
       </div>
+
+      {advanceError && (
+        <p className="text-xs text-red-400 mb-3 shrink-0">{advanceError}</p>
+      )}
 
       {isLoading && (
         <div className="flex gap-4 flex-1">

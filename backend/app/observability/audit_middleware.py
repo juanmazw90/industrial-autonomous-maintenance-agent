@@ -8,16 +8,19 @@ a summary diff extracted from the request body.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 
 import structlog
 
 from app.domain.audit import record
+from app.infra.tasks import spawn
 
 _logger = structlog.get_logger(__name__)
 
 _AUDIT_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
+
+# Bodies above this size (or multipart uploads) are not buffered for the diff.
+_MAX_BODY_CAPTURE = 64 * 1024
 
 _SKIP_PREFIXES = (
     "/health",
@@ -50,37 +53,52 @@ class AuditMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Drain the receive channel to buffer the full request body.
-        body_bytes = b""
-        more_body = True
-        while more_body:
-            msg = await receive()
-            if msg["type"] == "http.disconnect":
-                await send({"type": "http.response.start", "status": 400, "headers": []})
-                await send({"type": "http.response.body", "body": b""})
-                return
-            body_bytes += msg.get("body", b"")
-            more_body = msg.get("more_body", False)
+        # Multipart uploads and large bodies are not worth buffering in memory
+        # just to extract a diff summary — pass them through untouched.
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1")
+                   for k, v in scope.get("headers", [])}
+        content_type = headers.get("content-type", "")
+        try:
+            content_length = int(headers.get("content-length", "0"))
+        except ValueError:
+            content_length = 0
+        skip_body = content_type.startswith("multipart/") or content_length > _MAX_BODY_CAPTURE
 
         body_summary: dict = {}
-        if body_bytes:
-            try:
-                body_summary = json.loads(body_bytes)
-                if isinstance(body_summary, dict) and len(str(body_summary)) > 500:
-                    body_summary = {k: v for k, v in list(body_summary.items())[:10]}
-            except Exception:
-                body_summary = {"raw_length": len(body_bytes)}
+        if skip_body:
+            body_summary = {"skipped": content_type or "large body", "length": content_length}
+            replay_receive = receive
+        else:
+            # Drain the receive channel to buffer the full request body.
+            body_bytes = b""
+            more_body = True
+            while more_body:
+                msg = await receive()
+                if msg["type"] == "http.disconnect":
+                    await send({"type": "http.response.start", "status": 400, "headers": []})
+                    await send({"type": "http.response.body", "body": b""})
+                    return
+                body_bytes += msg.get("body", b"")
+                more_body = msg.get("more_body", False)
 
-        # Replay receive: return buffered body once, then forward to the real
-        # receive so StreamingResponse's disconnect listener can block correctly.
-        _consumed = False
+            if body_bytes:
+                try:
+                    body_summary = json.loads(body_bytes)
+                    if isinstance(body_summary, dict) and len(str(body_summary)) > 500:
+                        body_summary = {k: v for k, v in list(body_summary.items())[:10]}
+                except Exception:
+                    body_summary = {"raw_length": len(body_bytes)}
 
-        async def replay_receive():
-            nonlocal _consumed
-            if not _consumed:
-                _consumed = True
-                return {"type": "http.request", "body": body_bytes, "more_body": False}
-            return await receive()
+            # Replay receive: return buffered body once, then forward to the real
+            # receive so StreamingResponse's disconnect listener can block correctly.
+            _consumed = False
+
+            async def replay_receive():
+                nonlocal _consumed
+                if not _consumed:
+                    _consumed = True
+                    return {"type": "http.request", "body": body_bytes, "more_body": False}
+                return await receive()
 
         # Intercept send to record audit on 2xx responses.
         async def audit_send(message):
@@ -97,7 +115,7 @@ class AuditMiddleware:
                     entity_type = path_parts[-2] if len(path_parts) >= 2 else path_parts[0]
                     entity_id = path_parts[-1] if len(path_parts) >= 2 else "unknown"
 
-                    asyncio.create_task(record(
+                    spawn(record(
                         action=method.lower(),
                         entity_type=entity_type,
                         entity_id=entity_id,

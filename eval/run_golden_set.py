@@ -6,8 +6,7 @@ Para cada pregunta en eval/golden_set.json:
   2. Acumula la respuesta completa del agente.
   3. (Opcional) Usa Claude como LLM-as-judge para evaluar groundedness,
      hallucination_flag y accuracy comparando contra los reference_points.
-  4. Guarda resultados en data/evaluation/golden_set_results.json y registra
-     cada evaluación en la API /api/v2/agents/evaluations.
+  4. Guarda resultados en data/evaluation/golden_set_results.json.
 
 Uso:
   # Solo ejecutar y guardar respuestas (sin juicio LLM)
@@ -31,7 +30,7 @@ import asyncio
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -42,7 +41,7 @@ RESULTS_DIR    = REPO_ROOT / "data" / "evaluation"
 BACKEND_URL    = os.getenv("AMIA_BACKEND_URL", "http://localhost:8000")
 SESSION_ID     = str(uuid.uuid4())
 
-JUDGE_MODEL    = "claude-sonnet-5"
+JUDGE_MODEL    = os.getenv("AMIA_JUDGE_MODEL", "claude-sonnet-5")
 JUDGE_SYSTEM   = """Eres un evaluador experto de agentes de mantenimiento industrial.
 Evalúas la respuesta de un agente IA comparando con los reference_points esperados.
 Responde SOLO con un JSON válido con exactamente estas claves:
@@ -72,10 +71,9 @@ async def call_agent(query: str, session_id: str, client: httpx.AsyncClient) -> 
         buffer = ""
         async for chunk in resp.aiter_text():
             buffer += chunk
-            lines, *rest = buffer.split("\n")
-            # keep last incomplete line in buffer
-            buffer = rest[-1] if rest else ""
-            for line in (lines if isinstance(lines, list) else [lines]):
+            lines = buffer.split("\n")
+            buffer = lines.pop()  # la última línea puede estar incompleta
+            for line in lines:
                 if not line.startswith("data: "):
                     continue
                 try:
@@ -141,34 +139,6 @@ async def judge_response(
     return json.loads(raw)
 
 
-# ── Register evaluation via API ────────────────────────────────────────────────
-
-async def register_evaluation(
-    agent_run_id: str,
-    judgment: dict,
-    question_id: str,
-    client: httpx.AsyncClient,
-) -> None:
-    """Registra la evaluación en la BD — falla silenciosamente si el agent_run_id no existe."""
-    payload = {
-        "agent_run_id":      agent_run_id,
-        "accuracy":          (judgment["accuracy"] - 1) / 4,   # 1-5 → 0.0-1.0
-        "groundedness":      judgment["groundedness"],
-        "hallucination_flag": judgment["hallucination_flag"],
-        "evaluator":         f"llm-judge/{JUDGE_MODEL}",
-        "notes":             f"[{question_id}] {judgment.get('notes', '')}",
-    }
-    try:
-        resp = await client.post(
-            f"{BACKEND_URL}/api/v2/agents/evaluations",
-            json=payload,
-            timeout=15.0,
-        )
-        resp.raise_for_status()
-    except Exception:
-        pass  # agent_run_id de golden set no está en la BD; los scores se guardan en JSON
-
-
 # ── Runner ────────────────────────────────────────────────────────────────────
 
 async def run(args: argparse.Namespace) -> None:
@@ -201,7 +171,7 @@ async def run(args: argparse.Namespace) -> None:
                 "query":          q["query"],
                 "category":       q["category"],
                 "agent_expected": q["agent_expected"],
-                "timestamp":      datetime.now(timezone.utc).isoformat(),
+                "timestamp":      datetime.now(UTC).isoformat(),
                 "session_id":     SESSION_ID,
             }
 
@@ -230,9 +200,6 @@ async def run(args: argparse.Namespace) -> None:
                             f"hallucination={judgment['hallucination_flag']}"
                         )
 
-                        # Usar session_id como surrogate agent_run_id (simplificación)
-                        await register_evaluation(SESSION_ID, judgment, q["id"], client)
-
                         if judgment["accuracy"] >= 3 and not judgment["hallucination_flag"]:
                             passed += 1
                         else:
@@ -248,17 +215,18 @@ async def run(args: argparse.Namespace) -> None:
 
             results.append(result)
 
-    # Guardar resultados
+    # Guardar resultados — pass_rate solo tiene sentido cuando hubo juez LLM
+    pass_rate = round(passed / len(results), 3) if (args.judge and results) else None
     out = {
         "run_id":      SESSION_ID,
-        "timestamp":   datetime.now(timezone.utc).isoformat(),
+        "timestamp":   datetime.now(UTC).isoformat(),
         "backend_url": BACKEND_URL,
         "judge_used":  args.judge,
         "judge_model": JUDGE_MODEL if args.judge else None,
         "total":       len(results),
         "passed":      passed,
         "failed":      failed,
-        "pass_rate":   round(passed / len(results), 3) if results else 0,
+        "pass_rate":   pass_rate,
         "results":     results,
     }
 
@@ -267,15 +235,19 @@ async def run(args: argparse.Namespace) -> None:
 
     print(f"\n{'='*60}")
     print(f"Total: {len(results)} | Pasadas: {passed} | Falladas: {failed}")
-    if results:
-        print(f"Tasa de aprobación: {out['pass_rate']*100:.1f}%")
+    if pass_rate is not None:
+        print(f"Tasa de aprobación: {pass_rate*100:.1f}%")
+    else:
+        print("Tasa de aprobación: n/a (ejecuta con --judge para evaluar)")
     print(f"Resultados guardados en {out_path}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluación batch del agente AMIA contra el dataset dorado")
-    parser.add_argument("--judge", action="store_true", help="Activa LLM-as-judge con Claude (requiere ANTHROPIC_API_KEY)")
-    parser.add_argument("--category", type=str, default="", help="Filtrar por categoría (ej. rul, diagnostico, modos_de_fallo)")
+    parser.add_argument("--judge", action="store_true",
+                        help="Activa LLM-as-judge con Claude (requiere ANTHROPIC_API_KEY)")
+    parser.add_argument("--category", type=str, default="",
+                        help="Filtrar por categoría (ej. rul, diagnostico, modos_de_fallo)")
     args = parser.parse_args()
     asyncio.run(run(args))
 

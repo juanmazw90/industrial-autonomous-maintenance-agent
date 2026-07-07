@@ -10,7 +10,7 @@ or scheduled via asyncio.create_task from sync contexts.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -42,7 +42,7 @@ async def record(
                 entity_id=entity_id,
                 diff=diff or {},
                 correlation_id=correlation_id,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             ))
             await db.commit()
     except Exception:
@@ -67,7 +67,7 @@ async def record_timeline_event(
             db.add(TimelineEvent(
                 id=str(uuid.uuid4()),
                 machine_id=machine_id,
-                ts=datetime.now(timezone.utc),
+                ts=datetime.now(UTC),
                 kind=kind,
                 title=title,
                 payload=payload or {},

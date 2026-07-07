@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -19,6 +18,7 @@ from sqlalchemy import select
 
 from app.infra.db.base import AsyncSessionLocal
 from app.infra.db.models import Machine, ModelPrediction
+from app.infra.tasks import spawn
 
 _logger = structlog.get_logger(__name__)
 
@@ -57,7 +57,6 @@ def _run_shap_sync(
     Returns [{feature, shap_value, direction}] sorted by abs(shap_value) desc.
     """
     try:
-        import numpy as np
         import shap
 
         explainer = shap.TreeExplainer(model)
@@ -143,7 +142,7 @@ async def save_prediction(
         return None
 
     if shap_model is not None and shap_features is not None and shap_feature_names:
-        asyncio.create_task(
+        spawn(
             _compute_and_save_shap(pred_id, shap_model, shap_features, shap_feature_names)
         )
 
