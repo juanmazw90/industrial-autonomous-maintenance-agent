@@ -14,6 +14,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    mem_limit: 1g
 
   redis:
     image: redis:7-alpine
@@ -25,12 +26,19 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    mem_limit: 256m
 
   qdrant:
     image: qdrant/qdrant:v1.18.0
     container_name: amia-qdrant
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1g
 
   backend:
     build:
@@ -41,17 +49,24 @@ services:
       - "8000:8000"
     environment:
       ANTHROPIC_API_KEY:    ${ANTHROPIC_API_KEY}
-      MLFLOW_TRACKING_URI:  sqlite:////app/mlruns/mlflow.db
+      DATABASE_URL:         postgresql+asyncpg://${POSTGRES_USER:-amia}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-amia}
+      # NOTA: el registry SQLite guarda rutas de artefactos absolutas del host.
+      # Para un deploy real, reentrenar dentro del contenedor o usar un MLflow
+      # server con artifact store portable (S3/minio).
+      MLFLOW_TRACKING_URI:  sqlite:////app/mlflow.db
       DATA_PATH:            /app/data/synthetic/sensor_readings.parquet
       REDIS_URL:            redis://redis:6379
       QDRANT_HOST:          qdrant
+      CORS_ORIGINS:         ${CORS_ORIGINS:-http://localhost:3000}
       RATE_LIMIT_REQUESTS:  ${RATE_LIMIT_REQUESTS:-10}
       RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
       LANGFUSE_HOST:        ${LANGFUSE_HOST:-}
       LANGFUSE_PUBLIC_KEY:  ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY:  ${LANGFUSE_SECRET_KEY:-}
     volumes:
-      - ../mlruns:/app/mlruns:ro
+      # rw: SQLite necesita crear sidecars (-journal/-wal) junto a la BD
+      - ../mlflow.db:/app/mlflow.db
+      - ../mlruns:/app/mlruns
       - ../data:/app/data:ro
     depends_on:
       postgres:
@@ -59,21 +74,24 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
+    mem_limit: 4g
 
   frontend:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
+      args:
+        API_PROXY_URL: http://backend:8000
     container_name: amia-frontend
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://backend:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    mem_limit: 512m
 
 volumes:
   postgres_data:

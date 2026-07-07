@@ -44,6 +44,7 @@ node_modules/
 .next/
 out/
 .npm/
+*.tsbuildinfo
 
 # OS
 .DS_Store

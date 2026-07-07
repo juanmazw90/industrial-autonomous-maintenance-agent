@@ -21,9 +21,10 @@ import argparse
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")  # no display needed
-import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 

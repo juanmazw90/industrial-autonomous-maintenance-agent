@@ -3,8 +3,15 @@
 # Usage: ./scripts/demo_v0.sh [--days 365] [--seed 42]
 set -euo pipefail
 
-DAYS=${1:-365}
-SEED=${2:-42}
+DAYS=365
+SEED=42
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --days) DAYS="$2"; shift 2 ;;
+    --seed) SEED="$2"; shift 2 ;;
+    *) echo "Uso: $0 [--days N] [--seed N]"; exit 1 ;;
+  esac
+done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "============================================"

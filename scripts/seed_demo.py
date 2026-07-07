@@ -22,14 +22,11 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # Añadir backend al sys.path para importar app.*
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.infra.db.models import (
     AgentRun,
@@ -47,11 +44,13 @@ from app.infra.db.models import (
     WorkOrder,
 )
 from app.infra.settings import settings
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 engine = create_async_engine(settings.database_url, echo=False)
 Session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 def _dt(hours_ago: float = 0) -> datetime:

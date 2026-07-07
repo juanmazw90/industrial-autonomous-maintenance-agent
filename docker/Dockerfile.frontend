@@ -3,21 +3,34 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --frozen-lockfile
+RUN npm ci
 
 COPY frontend/ ./
+
+# Destino del proxy /api/* — se fija en build (next.config.js lo inyecta en el
+# servidor standalone). En compose prod: http://backend:8000
+ARG API_PROXY_URL=http://localhost:8000
+ENV API_PROXY_URL=$API_PROXY_URL
+
 RUN npm run build
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS runtime
 
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000
 
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static     ./.next/static
-COPY --from=builder /app/public           ./public
+# Requiere output: "standalone" en next.config.js
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static     ./.next/static
+
+USER node
 
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://localhost:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 CMD ["node", "server.js"]
