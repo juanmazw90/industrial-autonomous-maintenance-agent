@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import select
-
 from app.infra.db.models import DemoUser
-from app.infra.demo_identity import Actor, SYSTEM_ACTOR
+from app.infra.demo_identity import SYSTEM_ACTOR, Actor
+from sqlalchemy import select
 
 
 @pytest.mark.asyncio

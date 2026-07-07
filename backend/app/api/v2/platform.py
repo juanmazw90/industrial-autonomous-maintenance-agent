@@ -13,17 +13,19 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain import alerting, audit as audit_svc
-from app.infra.db.base import AsyncSessionLocal
+from app.domain import alerting
+from app.infra.db.base import AsyncSessionLocal, get_db
 from app.infra.db.models import Alert, AuditLog, Machine, WorkOrder
+from app.infra.settings import settings
 
 _logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/v2", tags=["platform"])
@@ -52,28 +54,28 @@ async def list_alerts(
     machine_code: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    async with AsyncSessionLocal() as db:
-        q = select(Alert, Machine).join(Machine, Alert.machine_id == Machine.id)
-        count_q = select(func.count(Alert.id))
+    q = select(Alert, Machine).join(Machine, Alert.machine_id == Machine.id)
+    count_q = select(func.count(Alert.id))
 
-        if status:
-            q = q.where(Alert.status == status)
-            count_q = count_q.where(Alert.status == status)
-        if severity:
-            q = q.where(Alert.severity == severity)
-            count_q = count_q.where(Alert.severity == severity)
-        if machine_code:
-            machine = (await db.execute(
-                select(Machine).where(Machine.code == machine_code.upper())
-            )).scalar_one_or_none()
-            if machine:
-                q = q.where(Alert.machine_id == machine.id)
-                count_q = count_q.where(Alert.machine_id == machine.id)
+    if status:
+        q = q.where(Alert.status == status)
+        count_q = count_q.where(Alert.status == status)
+    if severity:
+        q = q.where(Alert.severity == severity)
+        count_q = count_q.where(Alert.severity == severity)
+    if machine_code:
+        machine = (await db.execute(
+            select(Machine).where(Machine.code == machine_code.upper())
+        )).scalar_one_or_none()
+        if machine:
+            q = q.where(Alert.machine_id == machine.id)
+            count_q = count_q.where(Alert.machine_id == machine.id)
 
-        q = q.order_by(Alert.created_at.desc())
-        total = (await db.execute(count_q)).scalar() or 0
-        rows = (await db.execute(q.limit(limit).offset(offset))).all()
+    q = q.order_by(Alert.created_at.desc())
+    total = (await db.execute(count_q)).scalar() or 0
+    rows = (await db.execute(q.limit(limit).offset(offset))).all()
 
     return {
         "total": total,
@@ -100,28 +102,27 @@ async def list_alerts(
 
 
 @router.post("/alerts", status_code=201)
-async def create_alert(body: AlertCreate, request: Request) -> dict[str, Any]:
-    async with AsyncSessionLocal() as db:
-        machine = (await db.execute(
-            select(Machine).where(Machine.code == body.machine_code.upper())
-        )).scalar_one_or_none()
-        if not machine:
-            raise HTTPException(status_code=404, detail=f"Machine '{body.machine_code}' not found")
+async def create_alert(body: AlertCreate, request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+    machine = (await db.execute(
+        select(Machine).where(Machine.code == body.machine_code.upper())
+    )).scalar_one_or_none()
+    if not machine:
+        raise HTTPException(status_code=404, detail=f"Machine '{body.machine_code}' not found")
 
-        if body.severity not in ("critical", "high", "medium", "low"):
-            raise HTTPException(status_code=422, detail=f"Invalid severity '{body.severity}'")
+    if body.severity not in ("critical", "high", "medium", "low"):
+        raise HTTPException(status_code=422, detail=f"Invalid severity '{body.severity}'")
 
-        alert = Alert(
-            machine_id=machine.id,
-            severity=body.severity,
-            source=body.source,
-            title=body.title,
-            description=body.description,
-            status="new",
-        )
-        db.add(alert)
-        await db.commit()
-        await db.refresh(alert)
+    alert = Alert(
+        machine_id=machine.id,
+        severity=body.severity,
+        source=body.source,
+        title=body.title,
+        description=body.description,
+        status="new",
+    )
+    db.add(alert)
+    await db.commit()
+    await db.refresh(alert)
 
     return {
         "id": alert.id,
@@ -183,28 +184,28 @@ async def list_work_orders_v2(
     machine_code: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    async with AsyncSessionLocal() as db:
-        q = select(WorkOrder, Machine).join(Machine, WorkOrder.machine_id == Machine.id)
-        count_q = select(func.count(WorkOrder.id))
+    q = select(WorkOrder, Machine).join(Machine, WorkOrder.machine_id == Machine.id)
+    count_q = select(func.count(WorkOrder.id))
 
-        if status:
-            q = q.where(WorkOrder.status == status)
-            count_q = count_q.where(WorkOrder.status == status)
-        if priority:
-            q = q.where(WorkOrder.priority == priority)
-            count_q = count_q.where(WorkOrder.priority == priority)
-        if machine_code:
-            machine = (await db.execute(
-                select(Machine).where(Machine.code == machine_code.upper())
-            )).scalar_one_or_none()
-            if machine:
-                q = q.where(WorkOrder.machine_id == machine.id)
-                count_q = count_q.where(WorkOrder.machine_id == machine.id)
+    if status:
+        q = q.where(WorkOrder.status == status)
+        count_q = count_q.where(WorkOrder.status == status)
+    if priority:
+        q = q.where(WorkOrder.priority == priority)
+        count_q = count_q.where(WorkOrder.priority == priority)
+    if machine_code:
+        machine = (await db.execute(
+            select(Machine).where(Machine.code == machine_code.upper())
+        )).scalar_one_or_none()
+        if machine:
+            q = q.where(WorkOrder.machine_id == machine.id)
+            count_q = count_q.where(WorkOrder.machine_id == machine.id)
 
-        q = q.order_by(WorkOrder.created_at.desc())
-        total = (await db.execute(count_q)).scalar() or 0
-        rows = (await db.execute(q.limit(limit).offset(offset))).all()
+    q = q.order_by(WorkOrder.created_at.desc())
+    total = (await db.execute(count_q)).scalar() or 0
+    rows = (await db.execute(q.limit(limit).offset(offset))).all()
 
     return {
         "total": total,
@@ -231,28 +232,29 @@ async def list_work_orders_v2(
 
 
 @router.post("/work-orders", status_code=201)
-async def create_work_order(body: WorkOrderCreate, request: Request) -> dict[str, Any]:
+async def create_work_order(
+    body: WorkOrderCreate, request: Request, db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
     if body.priority not in ("critical", "high", "medium", "low"):
         raise HTTPException(status_code=422, detail=f"Invalid priority '{body.priority}'")
 
-    async with AsyncSessionLocal() as db:
-        machine = (await db.execute(
-            select(Machine).where(Machine.code == body.machine_code.upper())
-        )).scalar_one_or_none()
-        if not machine:
-            raise HTTPException(status_code=404, detail=f"Machine '{body.machine_code}' not found")
+    machine = (await db.execute(
+        select(Machine).where(Machine.code == body.machine_code.upper())
+    )).scalar_one_or_none()
+    if not machine:
+        raise HTTPException(status_code=404, detail=f"Machine '{body.machine_code}' not found")
 
-        wo = WorkOrder(
-            machine_id=machine.id,
-            title=body.title,
-            description=body.description,
-            priority=body.priority,
-            status="open",
-            estimated_cost=body.estimated_cost,
-        )
-        db.add(wo)
-        await db.commit()
-        await db.refresh(wo)
+    wo = WorkOrder(
+        machine_id=machine.id,
+        title=body.title,
+        description=body.description,
+        priority=body.priority,
+        status="open",
+        estimated_cost=body.estimated_cost,
+    )
+    db.add(wo)
+    await db.commit()
+    await db.refresh(wo)
 
     return {
         "id": wo.id,
@@ -266,27 +268,26 @@ async def create_work_order(body: WorkOrderCreate, request: Request) -> dict[str
 
 
 @router.patch("/work-orders/{wo_id}")
-async def update_work_order(wo_id: str, body: WorkOrderUpdate) -> dict[str, Any]:
+async def update_work_order(wo_id: str, body: WorkOrderUpdate, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     _VALID_WO_STATUSES = ("open", "assigned", "in_progress", "completed")
     if body.status and body.status not in _VALID_WO_STATUSES:
         raise HTTPException(status_code=422, detail=f"Invalid status '{body.status}'")
 
-    async with AsyncSessionLocal() as db:
-        wo = (await db.execute(
-            select(WorkOrder).where(WorkOrder.id == wo_id)
-        )).scalar_one_or_none()
-        if not wo:
-            raise HTTPException(status_code=404, detail=f"WorkOrder '{wo_id}' not found")
+    wo = (await db.execute(
+        select(WorkOrder).where(WorkOrder.id == wo_id)
+    )).scalar_one_or_none()
+    if not wo:
+        raise HTTPException(status_code=404, detail=f"WorkOrder '{wo_id}' not found")
 
-        if body.status:
-            wo.status = body.status
-        if body.assigned_to:
-            wo.assigned_to = body.assigned_to
-        if body.estimated_cost is not None:
-            wo.estimated_cost = body.estimated_cost
+    if body.status:
+        wo.status = body.status
+    if body.assigned_to:
+        wo.assigned_to = body.assigned_to
+    if body.estimated_cost is not None:
+        wo.estimated_cost = body.estimated_cost
 
-        await db.commit()
-        await db.refresh(wo)
+    await db.commit()
+    await db.refresh(wo)
 
     return {
         "id": wo.id,
@@ -308,7 +309,7 @@ async def get_logs(
     Returns recent structured log lines from the application log file.
     Falls back to an empty list when the log file is not configured.
     """
-    log_file = os.getenv("LOG_FILE_PATH", "")
+    log_file = settings.log_file_path
     entries: list[dict] = []
 
     if log_file and os.path.exists(log_file):
@@ -352,23 +353,23 @@ async def get_audit_trail(
     actor_id: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    async with AsyncSessionLocal() as db:
-        q = select(AuditLog).order_by(AuditLog.created_at.desc())
-        count_q = select(func.count(AuditLog.id))
+    q = select(AuditLog).order_by(AuditLog.created_at.desc())
+    count_q = select(func.count(AuditLog.id))
 
-        if entity_type:
-            q = q.where(AuditLog.entity_type == entity_type)
-            count_q = count_q.where(AuditLog.entity_type == entity_type)
-        if entity_id:
-            q = q.where(AuditLog.entity_id == entity_id)
-            count_q = count_q.where(AuditLog.entity_id == entity_id)
-        if actor_id:
-            q = q.where(AuditLog.actor_id == actor_id)
-            count_q = count_q.where(AuditLog.actor_id == actor_id)
+    if entity_type:
+        q = q.where(AuditLog.entity_type == entity_type)
+        count_q = count_q.where(AuditLog.entity_type == entity_type)
+    if entity_id:
+        q = q.where(AuditLog.entity_id == entity_id)
+        count_q = count_q.where(AuditLog.entity_id == entity_id)
+    if actor_id:
+        q = q.where(AuditLog.actor_id == actor_id)
+        count_q = count_q.where(AuditLog.actor_id == actor_id)
 
-        total = (await db.execute(count_q)).scalar() or 0
-        rows = (await db.execute(q.limit(limit).offset(offset))).scalars().all()
+    total = (await db.execute(count_q)).scalar() or 0
+    rows = (await db.execute(q.limit(limit).offset(offset))).scalars().all()
 
     return {
         "total": total,
@@ -397,7 +398,7 @@ async def _check(name: str, coro) -> dict[str, Any]:
     try:
         result = await asyncio.wait_for(coro, timeout=3.0)
         return {"name": name, "status": "ok", "detail": result}
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {"name": name, "status": "timeout"}
     except Exception as exc:
         return {"name": name, "status": "error", "detail": str(exc)[:200]}
@@ -410,8 +411,8 @@ async def _check_postgres() -> str:
 
 
 async def _check_redis() -> str:
-    from app.infra.settings import settings
     import redis.asyncio as aioredis
+
     r = aioredis.from_url(settings.redis_url, decode_responses=True)
     pong = await r.ping()
     await r.aclose()
@@ -419,8 +420,9 @@ async def _check_redis() -> str:
 
 
 async def _check_qdrant() -> str:
-    from app.services.rag_config import RAGConfig
     from qdrant_client import AsyncQdrantClient
+
+    from app.services.rag_config import RAGConfig
     cfg = RAGConfig()
     qdrant_url = f"http://{cfg.qdrant_host}:{cfg.qdrant_port}"
     client = AsyncQdrantClient(url=qdrant_url)
@@ -442,5 +444,5 @@ async def monitoring_services() -> dict[str, Any]:
     return {
         "overall": "ok" if all_ok else "degraded",
         "services": list(checks),
-        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "checked_at": datetime.now(UTC).isoformat(),
     }

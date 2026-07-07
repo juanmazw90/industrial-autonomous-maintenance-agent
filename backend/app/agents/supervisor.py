@@ -12,14 +12,19 @@ Agentes disponibles:
 """
 
 import os
+from typing import cast
 
 import anthropic
+from anthropic.types import MessageParam, ToolParam
 from pydantic import BaseModel
+
+from app.infra.settings import settings
 
 from .context import node_usage
 from .state import AMIAState
 
-_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+_client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+_MODEL = settings.llm_supervisor_model
 
 
 class RoutingDecision(BaseModel):
@@ -27,7 +32,7 @@ class RoutingDecision(BaseModel):
     reasoning: str
 
 
-_ROUTING_TOOL = {
+_ROUTING_TOOL: ToolParam = {
     "name": "route_to_agent",
     "description": "Decide qué agente especialista debe manejar la consulta.",
     "input_schema": {
@@ -76,13 +81,13 @@ async def supervisor_node(state: AMIAState) -> dict:
     Lee:    state["query"], state["conversation_history"]
     Escribe: state["next_agent"]
     """
-    messages = [
+    messages = cast(list[MessageParam], [
         *state.get("conversation_history", []),
         {"role": "user", "content": state["query"]},
-    ]
+    ])
 
-    response = _client.messages.create(
-        model="claude-haiku-4-5-20251001",
+    response = await _client.messages.create(
+        model=_MODEL,
         max_tokens=256,
         system=_SUPERVISOR_PROMPT,
         tools=[_ROUTING_TOOL],
@@ -92,7 +97,7 @@ async def supervisor_node(state: AMIAState) -> dict:
 
     # Export token usage so instrument_node can record cost.
     node_usage.set({
-        "model": "claude-haiku-4-5-20251001",
+        "model": _MODEL,
         "input_tokens": response.usage.input_tokens,
         "output_tokens": response.usage.output_tokens,
     })

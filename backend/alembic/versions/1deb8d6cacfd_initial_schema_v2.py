@@ -1,21 +1,21 @@
 """initial_schema_v2
 
 Revision ID: 1deb8d6cacfd
-Revises: 
+Revises:
 Create Date: 2026-07-02 12:50:52.959651
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '1deb8d6cacfd'
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -62,7 +62,8 @@ def upgrade() -> None:
     op.create_table('demo_users',
     sa.Column('id', sa.UUID(as_uuid=False), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('role', sa.Enum('operator', 'supervisor', 'maintenance_manager', 'plant_director', 'ai_engineer', name='demo_user_role'), nullable=False),
+    sa.Column('role', sa.Enum('operator', 'supervisor', 'maintenance_manager', 'plant_director',
+                              'ai_engineer', name='demo_user_role'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -162,12 +163,15 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['machine_id'], ['machines.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_model_predictions_machine_created', 'model_predictions', ['machine_id', 'created_at'], unique=False)
+    op.create_index('ix_model_predictions_machine_created', 'model_predictions',
+                    ['machine_id', 'created_at'], unique=False)
     op.create_table('timeline_events',
     sa.Column('id', sa.UUID(as_uuid=False), nullable=False),
     sa.Column('machine_id', sa.UUID(as_uuid=False), nullable=False),
     sa.Column('ts', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('kind', sa.Enum('sensor_anomaly', 'prediction', 'agent_decision', 'rca', 'economic', 'wo_created', 'alert_created', 'alert_resolved', name='timeline_event_kind'), nullable=False),
+    sa.Column('kind', sa.Enum('sensor_anomaly', 'prediction', 'agent_decision', 'rca', 'economic',
+                              'wo_created', 'alert_created', 'alert_resolved',
+                              name='timeline_event_kind'), nullable=False),
     sa.Column('title', sa.String(length=300), nullable=False),
     sa.Column('payload', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('correlation_id', sa.String(length=100), nullable=True),

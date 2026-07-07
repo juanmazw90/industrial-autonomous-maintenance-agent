@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
@@ -34,6 +34,11 @@ from qdrant_client.models import (
 )
 from sentence_transformers import SentenceTransformer
 
+if TYPE_CHECKING:
+    from app.rag.metrics import InstrumentedRetriever
+
+    from .retrieval import Retriever
+
 COLLECTION       = "query_cache"
 SIMILARITY_THRESHOLD = 0.95
 TTL_SECONDS      = 3600   # 1 hora
@@ -43,17 +48,25 @@ VECTOR_DIM       = 384
 class SemanticCache:
     def __init__(
         self,
-        embedder: SentenceTransformer,
-        qdrant: AsyncQdrantClient,
+        retriever: Retriever | InstrumentedRetriever,
         ttl: int = TTL_SECONDS,
         threshold: float = SIMILARITY_THRESHOLD,
     ) -> None:
-        self._embedder  = embedder
-        self._qdrant    = qdrant
+        # Referencia al retriever (no a sus modelos): preserva la carga perezosa
+        # del embedder y comparte el cliente Qdrant sin duplicarlo.
+        self._retriever = retriever
         self._ttl       = ttl
         self._threshold = threshold
         self._hits      = 0
         self._misses    = 0
+
+    @property
+    def _embedder(self) -> SentenceTransformer:
+        return self._retriever.embedder
+
+    @property
+    def _qdrant(self) -> AsyncQdrantClient:
+        return self._retriever.qdrant
 
     # ── Setup ──────────────────────────────────────────────────────────────
 
@@ -92,6 +105,7 @@ class SemanticCache:
             return None
 
         hit = results[0]
+        payload = hit.payload or {}
 
         # Verificar umbral de similitud
         if hit.score < self._threshold:
@@ -99,16 +113,16 @@ class SemanticCache:
             return None
 
         # Verificar TTL
-        cached_at = hit.payload.get("cached_at", 0)
+        cached_at = payload.get("cached_at", 0)
         if time.time() - cached_at > self._ttl:
             self._misses += 1
             return None
 
         self._hits += 1
         return {
-            "response":   hit.payload["response"],
-            "sources":    hit.payload.get("sources", []),
-            "agent_used": hit.payload.get("agent_used", "doc_expert"),
+            "response":   payload.get("response", ""),
+            "sources":    payload.get("sources", []),
+            "agent_used": payload.get("agent_used", "doc_expert"),
             "cached":     True,
             "similarity": round(hit.score, 4),
         }

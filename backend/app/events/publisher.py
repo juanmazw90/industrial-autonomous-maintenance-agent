@@ -4,8 +4,6 @@ El endpoint SSE /api/v2/events/stream consume este canal y reenvía al frontend.
 """
 from __future__ import annotations
 
-import json
-
 import redis.asyncio as aioredis
 
 from app.events.schemas import BaseEvent

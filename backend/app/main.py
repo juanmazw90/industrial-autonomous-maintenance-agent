@@ -1,58 +1,70 @@
 import asyncio
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from pathlib import Path as _Path
+from typing import Any
 
 from dotenv import load_dotenv
-from pathlib import Path as _Path
+
 # Ruta explícita: sube desde backend/app/ hasta la raíz del repo donde vive .env
 load_dotenv(_Path(__file__).resolve().parents[2] / ".env", override=True)
+
+# XGBoost debe inicializar su runtime OpenMP antes de que torch (importado vía
+# sentence-transformers más abajo) cargue el suyo — el orden inverso segfaultea.
+from .infra.native_libs import ensure_openmp_order
+
+ensure_openmp_order()
 
 import json
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-
-from .graph import get_graph
-from .middleware.rate_limiter import RateLimitMiddleware
-from .models import FailurePredictionResponse, IncomingSensorReading, InputQuery
-from .observability.logging import configure_logging
-from .observability.correlation import CorrelationIdMiddleware
-from .observability.audit_middleware import AuditMiddleware
-from .infra.demo_identity import DemoIdentityMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
-from .api.v2.events import router as events_router
-from .api.v2.config import router as config_router
-from .api.v2.operations import router as operations_router
-from .api.v2.agents import router as agents_router
-from .api.v2.ml import router as ml_router
-from .api.v2.platform import router as platform_router
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from .agents.context import set_event_loop as _set_instrumentation_loop
+from .api.v2.agents import router as agents_router
+from .api.v2.config import router as config_router
+from .api.v2.events import router as events_router
+from .api.v2.ml import router as ml_router
+from .api.v2.operations import router as operations_router
+from .api.v2.platform import router as platform_router
 from .domain.alerting import start_alert_job
+from .graph import get_graph
+from .infra.db.base import get_db
+from .infra.db.models import Machine, WorkOrder
+from .infra.demo_identity import DemoIdentityMiddleware
+from .infra.settings import settings
+from .middleware.rate_limiter import RateLimitMiddleware
 from .ml.explain import load_machine_registry
+from .models import FailurePredictionResponse, IncomingSensorReading, InputQuery
+from .observability.audit_middleware import AuditMiddleware
+from .observability.correlation import CorrelationIdMiddleware
+from .observability.logging import configure_logging
 from .rag.metrics import InstrumentedRetriever
 from .services.conversation import ConversationStore
+from .services.feature_store import load_feature_bundle
 from .services.ingestion import IngestionPipeline, parse_document
 from .services.predictor import FailurePredictor
-from .services.cmms import CMMS
-from .services.rca_predictor import RCAPredictor
-from .services.rul_predictor import RULPredictor
 from .services.rag_config import RAGConfig
+from .services.rca_predictor import RCAPredictor
 from .services.retrieval import Retriever
+from .services.rul_predictor import RULPredictor
 from .services.semantic_cache import SemanticCache
 
-# ── Langfuse (opcional — activo cuando LANGFUSE_PUBLIC_KEY está en el entorno) ──
+# ── Langfuse (opcional — activo cuando LANGFUSE_PUBLIC_KEY está configurada) ──
 try:
     from langfuse import Langfuse as _Langfuse
     from langfuse.langchain import CallbackHandler as _LangfuseCallbackHandler
-    _LANGFUSE_ENABLED = bool(os.getenv("LANGFUSE_PUBLIC_KEY"))
+    _LANGFUSE_ENABLED = bool(settings.langfuse_public_key)
     _langfuse: "_Langfuse | None" = (
         _Langfuse(
-            host=os.getenv("LANGFUSE_HOST", "http://localhost:3001"),
-            public_key=os.getenv("LANGFUSE_PUBLIC_KEY", ""),
-            secret_key=os.getenv("LANGFUSE_SECRET_KEY", ""),
+            host=settings.langfuse_host,
+            public_key=settings.langfuse_public_key,
+            secret_key=settings.langfuse_secret_key,
         )
         if _LANGFUSE_ENABLED
         else None
@@ -66,8 +78,8 @@ except Exception:
 configure_logging()
 
 REPO_ROOT  = Path(__file__).resolve().parents[2]
-MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{REPO_ROOT / 'mlflow.db'}")
-DATA_PATH  = Path(os.getenv("DATA_PATH", REPO_ROOT / "data/synthetic/sensor_readings.parquet"))
+MLFLOW_URI = settings.mlflow_tracking_uri
+DATA_PATH  = Path(settings.data_path)
 
 config    = RAGConfig()
 retriever = InstrumentedRetriever(Retriever(config))
@@ -75,10 +87,9 @@ pipeline  = IngestionPipeline(config)
 predictor     = FailurePredictor()
 rca_predictor = RCAPredictor()
 rul_predictor = RULPredictor()
-cmms          = CMMS()
-graph         = get_graph(config, predictor, retriever, rca_predictor, cmms, rul_predictor)
-store     = ConversationStore()
-sem_cache = SemanticCache(retriever.embedder, retriever.qdrant)
+graph         = get_graph(config, predictor, retriever, rca_predictor, rul_predictor)
+store     = ConversationStore(settings.redis_url)
+sem_cache = SemanticCache(retriever)
 
 
 @asynccontextmanager
@@ -96,19 +107,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[SemanticCache] No se pudo inicializar: {e}")
 
-    # Inicializar predictor en thread pool (CPU-bound, ~30s)
+    # Features del histórico: se computan UNA vez y se comparten entre los 3 predictores
+    bundle = None
     try:
-        await loop.run_in_executor(None, predictor.initialize, MLFLOW_URI, DATA_PATH)
+        bundle = await loop.run_in_executor(None, load_feature_bundle, DATA_PATH)
     except Exception as e:
-        print(f"[Predictor] No se pudo inicializar: {e}. /predict/failure no estará disponible.")
-    try:
-        await loop.run_in_executor(None, rca_predictor.initialize, MLFLOW_URI, DATA_PATH)
-    except Exception as e:
-        print(f"[RCAPredictor] No se pudo inicializar: {e}. Diagnóstico RCA no estará disponible.")
-    try:
-        await loop.run_in_executor(None, rul_predictor.initialize, MLFLOW_URI, DATA_PATH)
-    except Exception as e:
-        print(f"[RULPredictor] No se pudo inicializar: {e}. Predicción RUL no estará disponible.")
+        print(f"[FeatureStore] No se pudo cargar el histórico: {e}. Predictores no disponibles.")
+
+    if bundle is not None:
+        try:
+            await loop.run_in_executor(None, predictor.initialize, MLFLOW_URI, DATA_PATH, bundle)
+        except Exception as e:
+            print(f"[Predictor] No se pudo inicializar: {e}. /predict/failure no estará disponible.")
+        try:
+            await loop.run_in_executor(None, rca_predictor.initialize, MLFLOW_URI, DATA_PATH, bundle)
+        except Exception as e:
+            print(f"[RCAPredictor] No se pudo inicializar: {e}. Diagnóstico RCA no estará disponible.")
+        try:
+            await loop.run_in_executor(None, rul_predictor.initialize, MLFLOW_URI, DATA_PATH, bundle)
+        except Exception as e:
+            print(f"[RULPredictor] No se pudo inicializar: {e}. Predicción RUL no estará disponible.")
 
     # Start background alert evaluation job (runs every 60 s).
     _alert_task = start_alert_job()
@@ -129,7 +147,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.cors_origins_list,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -176,10 +194,11 @@ class _DeprecationMiddleware:
 
 app.add_middleware(_DeprecationMiddleware)
 
-_RATE_LIMIT      = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
-_RATE_WINDOW     = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
-_REDIS_RATE_URL  = os.getenv("REDIS_URL", "redis://localhost:6379")
-app.add_middleware(RateLimitMiddleware, redis_url=_REDIS_RATE_URL, limit=_RATE_LIMIT, window=_RATE_WINDOW)
+_RATE_LIMIT  = settings.rate_limit_requests
+_RATE_WINDOW = settings.rate_limit_window_seconds
+app.add_middleware(
+    RateLimitMiddleware, redis_url=settings.redis_url, limit=_RATE_LIMIT, window=_RATE_WINDOW
+)
 
 
 @app.get("/health")
@@ -207,7 +226,7 @@ async def ingest(file: UploadFile = File(...)) -> dict:
     except ValueError as e:
         raise HTTPException(status_code=415, detail=str(e))
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         n_chunks = await loop.run_in_executor(None, pipeline.ingest, doc)
     except Exception as e:
@@ -223,13 +242,13 @@ async def ingest(file: UploadFile = File(...)) -> dict:
 
 @app.post("/process_input")
 async def process_input(user_input: InputQuery) -> dict:
-    history = store.get_history(user_input.session_id)
+    history = await store.get_history(user_input.session_id)
 
     # ── Semantic cache check ──────────────────────────────────────────────
     cached = await sem_cache.get(user_input.query)
     if cached:
         # Hit: devolver respuesta sin llamar a LangGraph
-        store.append_turn(user_input.session_id, user_input.query, cached["response"])
+        await store.append_turn(user_input.session_id, user_input.query, cached["response"])
         return {
             "response":   cached["response"],
             "sources":    cached["sources"],
@@ -240,7 +259,7 @@ async def process_input(user_input: InputQuery) -> dict:
         }
 
     # ── LangGraph invocation ──────────────────────────────────────────────
-    lf_callbacks = [_LangfuseCallbackHandler()] if (_langfuse and _LangfuseCallbackHandler) else []
+    lf_callbacks = [_LangfuseCallbackHandler()] if (_langfuse and _LangfuseCallbackHandler is not None) else []
     try:
         result = await graph.ainvoke(
             {
@@ -265,7 +284,7 @@ async def process_input(user_input: InputQuery) -> dict:
     response   = result["final_response"]
     sources    = result["sources"]
 
-    store.append_turn(user_input.session_id, user_input.query, response)
+    await store.append_turn(user_input.session_id, user_input.query, response)
 
     # ── Store in semantic cache (solo doc_expert) ─────────────────────────
     await sem_cache.set(user_input.query, response, sources, agent_used)
@@ -282,23 +301,27 @@ async def process_input(user_input: InputQuery) -> dict:
 @app.post("/process_input/stream")
 async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
     """Server-Sent Events endpoint — streams synthesizer tokens as they are generated."""
-    history = store.get_history(user_input.session_id)
+    history = await store.get_history(user_input.session_id)
 
     async def event_gen():
         # ── Semantic cache hit ────────────────────────────────────────────────
         cached = await sem_cache.get(user_input.query)
         if cached:
-            store.append_turn(user_input.session_id, user_input.query, cached["response"])
+            await store.append_turn(user_input.session_id, user_input.query, cached["response"])
             # Send cached text in small chunks with delay for animation effect
             text = cached["response"]
             for i in range(0, len(text), 6):
                 yield f"data: {json.dumps({'type': 'token', 'content': text[i:i+6]})}\n\n"
                 await asyncio.sleep(0.018)
-            yield f"data: {json.dumps({'type': 'done', 'agent_used': cached['agent_used'], 'sources': cached['sources'], 'cached': True, 'session_id': user_input.session_id})}\n\n"
+            done_evt = {
+                "type": "done", "agent_used": cached["agent_used"], "sources": cached["sources"],
+                "cached": True, "session_id": user_input.session_id,
+            }
+            yield f"data: {json.dumps(done_evt)}\n\n"
             return
 
         # ── LangGraph astream_events ──────────────────────────────────────────
-        lf_callbacks = [_LangfuseCallbackHandler()] if (_langfuse and _LangfuseCallbackHandler) else []
+        lf_callbacks = [_LangfuseCallbackHandler()] if (_langfuse and _LangfuseCallbackHandler is not None) else []
 
         accumulated = ""
         agent_used  = "synthesizer"
@@ -324,15 +347,12 @@ async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
             ):
                 kind = event["event"]
 
-                if kind == "on_chat_model_stream":
-                    # Only stream tokens produced by the synthesizer node
-                    node = event.get("metadata", {}).get("langgraph_node", "")
-                    if node == "synthesizer":
-                        chunk = event["data"]["chunk"]
-                        content = chunk.content if hasattr(chunk, "content") else ""
-                        if content:
-                            accumulated += content
-                            yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
+                if kind == "on_custom_event" and event.get("name") == "synthesizer_token":
+                    # Tokens emitidos por el synthesizer vía adispatch_custom_event
+                    content = event.get("data", {}).get("content", "")
+                    if content:
+                        accumulated += content
+                        yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
 
                 elif kind == "on_chain_end":
                     output = event.get("data", {}).get("output", {})
@@ -352,10 +372,14 @@ async def process_input_stream(user_input: InputQuery) -> StreamingResponse:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
 
-        store.append_turn(user_input.session_id, user_input.query, accumulated)
+        await store.append_turn(user_input.session_id, user_input.query, accumulated)
         await sem_cache.set(user_input.query, accumulated, sources, agent_used)
 
-        yield f"data: {json.dumps({'type': 'done', 'agent_used': agent_used, 'sources': sources, 'cached': False, 'session_id': user_input.session_id})}\n\n"
+        done_evt = {
+            "type": "done", "agent_used": agent_used, "sources": sources,
+            "cached": False, "session_id": user_input.session_id,
+        }
+        yield f"data: {json.dumps(done_evt)}\n\n"
 
     return StreamingResponse(
         event_gen(),
@@ -389,35 +413,61 @@ async def receive_sensor_reading(reading: IncomingSensorReading) -> dict:
     if not predictor.initialized:
         raise HTTPException(status_code=503, detail="El predictor no está disponible.")
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, predictor.update_with_reading, reading.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
+def _wo_to_v1(wo: WorkOrder, machine_code: str | None) -> dict:
+    return {
+        "work_order_id":  wo.id,
+        "machine_id":     machine_code or wo.machine_id,
+        "title":          wo.title,
+        "priority":       wo.priority,
+        "estimated_cost": wo.estimated_cost or 0.0,
+        "status":         wo.status,
+        "created_at":     wo.created_at.isoformat(),
+    }
+
+
 @app.get("/work-orders")
-async def list_work_orders() -> list[dict]:
+async def list_work_orders(db: AsyncSession = Depends(get_db)) -> list[dict]:
     """Devuelve todas las órdenes de trabajo (abiertas y completadas)."""
-    return cmms.list_orders()
+    rows = (await db.execute(
+        select(WorkOrder, Machine)
+        .join(Machine, WorkOrder.machine_id == Machine.id)
+        .order_by(WorkOrder.created_at.desc())
+    )).all()
+    return [_wo_to_v1(wo, m.code) for wo, m in rows]
 
 
 @app.get("/work-orders/{wo_id}")
-async def get_work_order(wo_id: str) -> dict:
+async def get_work_order(wo_id: str, db: AsyncSession = Depends(get_db)) -> dict:
     """Devuelve una orden de trabajo por su ID."""
-    order = cmms.get_order(wo_id)
-    if not order:
+    row = (await db.execute(
+        select(WorkOrder, Machine)
+        .join(Machine, WorkOrder.machine_id == Machine.id)
+        .where(WorkOrder.id == wo_id)
+    )).one_or_none()
+    if not row:
         raise HTTPException(status_code=404, detail=f"Orden {wo_id} no encontrada")
-    return order
+    wo, m = row
+    return _wo_to_v1(wo, m.code)
 
 
 @app.patch("/work-orders/{wo_id}/complete")
-async def complete_work_order(wo_id: str) -> dict:
+async def complete_work_order(wo_id: str, db: AsyncSession = Depends(get_db)) -> dict:
     """Marca una orden de trabajo como completada."""
-    order = cmms.get_order(wo_id)
-    if not order:
+    wo = (await db.execute(
+        select(WorkOrder).where(WorkOrder.id == wo_id)
+    )).scalar_one_or_none()
+    if not wo:
         raise HTTPException(status_code=404, detail=f"Orden {wo_id} no encontrada")
-    order["status"] = "completed"
-    return order
+    wo.status = "completed"
+    await db.commit()
+    await db.refresh(wo)
+    return _wo_to_v1(wo, None)
 
 
 @app.post("/predict/rul")
@@ -450,7 +500,7 @@ async def evaluate_models() -> dict:
     sys.path.insert(0, str(REPO_ROOT / "ml"))
     try:
         from amia_ml.evaluate import run_all
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         results = await loop.run_in_executor(None, run_all)
         return {"status": "ok", "results": results}
     except Exception as e:
@@ -467,7 +517,7 @@ async def get_drift_report() -> dict:
     sys.path.insert(0, str(REPO_ROOT / "ml"))
     try:
         from amia_ml.monitor_drift import run_drift_report
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         summary = await loop.run_in_executor(None, run_drift_report)
         return {"status": "ok", **summary}
     except Exception as e:
@@ -475,25 +525,31 @@ async def get_drift_report() -> dict:
 
 
 @app.get("/metrics/kpis")
-async def get_kpis() -> dict:
+async def get_kpis(db: AsyncSession = Depends(get_db)) -> dict:
     """
     KPIs ejecutivos del sistema: estado de la flota, riesgo económico y degradación media.
     Usado por el executive dashboard del frontend.
     """
-    failure_preds: list[dict] = predictor.predict_all() if predictor.initialized else []
-    rul_preds:     list[dict] = rul_predictor.predict_all() if rul_predictor.initialized else []
-    all_orders     = cmms.list_orders()
-    open_orders    = [o for o in all_orders if o.get("status") == "open"]
+    failure_preds: list[dict[str, Any]] = predictor.predict_all() if predictor.initialized else []
+    rul_preds:     list[dict[str, Any]] = rul_predictor.predict_all() if rul_predictor.initialized else []
+
+    total_wo = (await db.execute(select(func.count(WorkOrder.id)))).scalar() or 0
+    open_orders = (await db.execute(
+        select(WorkOrder).where(WorkOrder.status == "open")
+    )).scalars().all()
 
     alert_counts = {"green": 0, "yellow": 0, "red": 0}
     for p in failure_preds:
         level = p.get("alert_level", "green")
         alert_counts[level] = alert_counts.get(level, 0) + 1
 
-    total_risk_usd = sum(o.get("estimated_cost", 0.0) for o in open_orders)
+    total_risk_usd = sum(o.estimated_cost or 0.0 for o in open_orders)
 
     avg_rul   = round(sum(r["hours_remaining"] for r in rul_preds) / len(rul_preds), 1) if rul_preds else None
-    avg_degr  = round(sum(r["degradation_fraction"] for r in rul_preds) / len(rul_preds) * 100, 1) if rul_preds else None
+    avg_degr = (
+        round(sum(r["degradation_fraction"] for r in rul_preds) / len(rul_preds) * 100, 1)
+        if rul_preds else None
+    )
 
     return {
         "version":                 "0.7.0",
@@ -502,7 +558,7 @@ async def get_kpis() -> dict:
         "machines_warning":        alert_counts["yellow"],
         "machines_critical":       alert_counts["red"],
         "work_orders_open":        len(open_orders),
-        "work_orders_total":       len(all_orders),
+        "work_orders_total":       total_wo,
         "risk_exposure_usd":       round(total_risk_usd, 2),
         "avg_rul_hours":           avg_rul,
         "fleet_degradation_pct":   avg_degr,

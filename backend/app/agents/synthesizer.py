@@ -9,12 +9,19 @@ Es el único nodo que produce texto hacia el usuario.
 """
 
 import os
+from typing import cast
 
 import anthropic
+from anthropic.types import MessageParam
+from langchain_core.callbacks.manager import adispatch_custom_event
 
+from app.infra.settings import settings
+
+from .context import node_usage
 from .state import AMIAState
 
-_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+_client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+_MODEL = settings.llm_synthesizer_model
 
 _SYSTEM_PROMPT = """Eres un experto en mantenimiento industrial.
 
@@ -111,9 +118,10 @@ def _build_rul_context(rul: dict) -> str:
 
 
 _PRIORITY_ES: dict[str, str] = {
-    "urgent": "URGENTE",
-    "high":   "ALTA",
-    "normal": "NORMAL",
+    "critical": "CRÍTICA",
+    "high":     "ALTA",
+    "medium":   "MEDIA",
+    "low":      "BAJA",
 }
 
 
@@ -177,21 +185,38 @@ async def synthesizer_node(state: AMIAState) -> dict:
         context = _build_docs_context(docs)
         user_message = f"Contexto:\n{context}\n\nPregunta: {query}"
 
-    messages = [
+    messages = cast(list[MessageParam], [
         *history,
         {"role": "user", "content": user_message},
-    ]
+    ])
 
-    response = _client.messages.create(
-        model="claude-sonnet-4-6",
+    # Streaming real: cada delta se emite como custom event para que el endpoint
+    # SSE (astream_events → on_custom_event) lo reenvíe al cliente token a token.
+    parts: list[str] = []
+    emit_ok = True
+    async with _client.messages.stream(
+        model=_MODEL,
         max_tokens=1024,
         system=_SYSTEM_PROMPT,
         messages=messages,
-    )
+    ) as stream:
+        async for text in stream.text_stream:
+            parts.append(text)
+            if emit_ok:
+                try:
+                    await adispatch_custom_event("synthesizer_token", {"content": text})
+                except RuntimeError:
+                    # Sin contexto runnable (p.ej. nodo invocado directo en tests)
+                    emit_ok = False
+        final = await stream.get_final_message()
 
-    answer = response.content[0].text if response.content else ""
+    node_usage.set({
+        "model": _MODEL,
+        "input_tokens": final.usage.input_tokens,
+        "output_tokens": final.usage.output_tokens,
+    })
 
     return {
-        "final_response": answer,
+        "final_response": "".join(parts),
         "sources": _build_sources(docs),
     }

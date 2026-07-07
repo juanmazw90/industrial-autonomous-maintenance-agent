@@ -5,11 +5,12 @@ Flujo V4:
   supervisor → doc_expert    → synthesizer → END          (documentación)
   supervisor → sensor_analyst → [verde]    → synthesizer  (máquina sana)
   supervisor → sensor_analyst → [alerta]   → rul_analyst → [sin impacto] → synthesizer
-                                                          → [con impacto] → economic_analyst → work_order_creator → synthesizer
+                                            → [con impacto] → economic_analyst → work_order_creator → synthesizer
   supervisor → rul_analyst   → synthesizer → END          (consulta directa de RUL)
   supervisor → synthesizer   → END                        (respuesta directa)
 """
 
+from collections.abc import Hashable
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -23,12 +24,12 @@ from .agents.state import AMIAState
 from .agents.supervisor import supervisor_node
 from .agents.synthesizer import synthesizer_node
 from .agents.work_order_creator import make_work_order_creator_node
-from .services.cmms import CMMS
+from .rag.metrics import InstrumentedRetriever
 from .services.predictor import FailurePredictor
 from .services.rag_config import RAGConfig
 from .services.rca_predictor import RCAPredictor
-from .services.rul_predictor import RULPredictor
 from .services.retrieval import Retriever
+from .services.rul_predictor import RULPredictor
 from .services.tools import (
     build_predict_failure_tool,
     build_predict_rca_tool,
@@ -76,9 +77,8 @@ def _route_after_rul(state: AMIAState) -> str:
 def build_graph(
     config: RAGConfig,
     predictor: FailurePredictor | None = None,
-    retriever: Retriever | None = None,
+    retriever: "Retriever | InstrumentedRetriever | None" = None,
     rca_predictor: RCAPredictor | None = None,
-    cmms: CMMS | None = None,
     rul_predictor: RULPredictor | None = None,
 ) -> Any:
     """Construye y compila el grafo. Se llama una vez al arrancar la app."""
@@ -105,10 +105,8 @@ def build_graph(
         ))
 
     # ── Nodos V3/V4 (siempre registrados) ────────────────────────────────────
-    if cmms is None:
-        cmms = CMMS()
     graph.add_node("economic_analyst",   instrument_node("economic_analyst")(make_economic_analyst_node()))
-    graph.add_node("work_order_creator", instrument_node("work_order_creator")(make_work_order_creator_node(cmms)))
+    graph.add_node("work_order_creator", instrument_node("work_order_creator")(make_work_order_creator_node()))
 
     if rul_predictor is None:
         rul_predictor = RULPredictor()
@@ -118,7 +116,7 @@ def build_graph(
     # ── Aristas ───────────────────────────────────────────────────────────────
     graph.set_entry_point("supervisor")
 
-    routing_map: dict[str, str] = {
+    routing_map: dict[Hashable, str] = {
         "doc_expert":  "doc_expert",
         "rul_analyst": "rul_analyst",
         "synthesizer": "synthesizer",
@@ -160,9 +158,8 @@ _graph_instance = None
 def get_graph(
     config: RAGConfig | None = None,
     predictor: FailurePredictor | None = None,
-    retriever: Retriever | None = None,
+    retriever: "Retriever | InstrumentedRetriever | None" = None,
     rca_predictor: RCAPredictor | None = None,
-    cmms: CMMS | None = None,
     rul_predictor: RULPredictor | None = None,
 ) -> Any:
     """Devuelve la instancia compilada del grafo (singleton)."""
@@ -170,5 +167,5 @@ def get_graph(
     if _graph_instance is None:
         if config is None:
             config = RAGConfig()
-        _graph_instance = build_graph(config, predictor, retriever, rca_predictor, cmms, rul_predictor)
+        _graph_instance = build_graph(config, predictor, retriever, rca_predictor, rul_predictor)
     return _graph_instance

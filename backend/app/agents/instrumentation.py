@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import wraps
 from typing import Any
 
@@ -65,7 +65,7 @@ async def _create_agent_run(
                 session_id=session_id,
                 agent_name=agent_name,
                 parent_run_id=parent_run_id,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 input_summary=input_summary,
                 status="running",
             ))
@@ -89,7 +89,7 @@ async def _finish_agent_run(
         async with AsyncSessionLocal() as db:
             run = await db.get(AgentRun, run_id)
             if run:
-                run.finished_at = datetime.now(timezone.utc)
+                run.finished_at = datetime.now(UTC)
                 run.latency_ms = latency_ms
                 run.status = status
                 run.output_summary = output_summary
@@ -118,7 +118,7 @@ async def _create_tool_call(
                 id=str(uuid.uuid4()),
                 agent_run_id=agent_run_id,
                 tool_name=tool_name,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 latency_ms=latency_ms,
                 input={"arg": str(input_data)[:400]} if input_data is not None else None,
                 output={"result": str(output_data)[:400]} if output_data is not None else None,
@@ -173,7 +173,7 @@ def instrument_node(name: str) -> Callable:
             # Reset node_usage so the node can set a fresh value
             tok_usg = node_usage.set(None)
 
-            started_at = datetime.now(timezone.utc)
+            started_at = datetime.now(UTC)
             status = "success"
             error_msg: str | None = None
             result: dict = {}
@@ -191,7 +191,7 @@ def instrument_node(name: str) -> Callable:
                 raise
 
             finally:
-                finished_at = datetime.now(timezone.utc)
+                finished_at = datetime.now(UTC)
                 latency_ms = int((finished_at - started_at).total_seconds() * 1000)
 
                 usage = node_usage.get()
@@ -254,7 +254,7 @@ def instrument_tool(name: str) -> Callable:
     def decorator(fn: Callable) -> Callable:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            started_at = datetime.now(timezone.utc)
+            started_at = datetime.now(UTC)
             run_id = current_run_id.get()
             output_data: Any = None
             status = "success"
@@ -269,7 +269,7 @@ def instrument_tool(name: str) -> Callable:
                 raise
             finally:
                 latency_ms = int(
-                    (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
+                    (datetime.now(UTC) - started_at).total_seconds() * 1000
                 )
                 if run_id:
                     _fire_tool_call(
@@ -293,7 +293,7 @@ def instrument_async_tool(name: str) -> Callable:
     def decorator(fn: Callable) -> Callable:
         @wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            started_at = datetime.now(timezone.utc)
+            started_at = datetime.now(UTC)
             run_id = current_run_id.get()
             output_data: Any = None
             status = "success"
@@ -308,7 +308,7 @@ def instrument_async_tool(name: str) -> Callable:
                 raise
             finally:
                 latency_ms = int(
-                    (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
+                    (datetime.now(UTC) - started_at).total_seconds() * 1000
                 )
                 if run_id:
                     await _create_tool_call(

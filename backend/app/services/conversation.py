@@ -10,36 +10,36 @@ RAG, para evitar que el historial crezca con texto de los documentos.
 
 import json
 
-import redis
+import redis.asyncio as redis
 
 _MAX_TURNS = 10        # 10 turnos = 20 mensajes (user + assistant)
 _TTL_SECONDS = 86_400  # 24 horas
 
 
 class ConversationStore:
-    def __init__(self, host: str = "localhost", port: int = 6379):
-        self._redis = redis.Redis(host=host, port=port, decode_responses=True)
+    def __init__(self, url: str = "redis://localhost:6379"):
+        self._redis = redis.Redis.from_url(url, decode_responses=True)
 
     def _key(self, session_id: str) -> str:
         return f"conv:{session_id}"
 
-    def get_history(self, session_id: str) -> list[dict]:
+    async def get_history(self, session_id: str) -> list[dict]:
         """Devuelve el historial de la sesión o lista vacía si no existe."""
-        raw = self._redis.get(self._key(session_id))
+        raw = await self._redis.get(self._key(session_id))
         if raw is None:
             return []
         return json.loads(raw)
 
-    def append_turn(self, session_id: str, user_query: str, assistant_response: str) -> None:
+    async def append_turn(self, session_id: str, user_query: str, assistant_response: str) -> None:
         """Añade un turno (user + assistant) y renueva el TTL."""
-        history = self.get_history(session_id)
+        history = await self.get_history(session_id)
         history.append({"role": "user",      "content": user_query})
         history.append({"role": "assistant", "content": assistant_response})
         # Ventana deslizante: mantiene solo los últimos N turnos
         if len(history) > _MAX_TURNS * 2:
-            history = history[-(  _MAX_TURNS * 2):]
-        self._redis.setex(self._key(session_id), _TTL_SECONDS, json.dumps(history))
+            history = history[-(_MAX_TURNS * 2):]
+        await self._redis.setex(self._key(session_id), _TTL_SECONDS, json.dumps(history))
 
-    def clear(self, session_id: str) -> None:
+    async def clear(self, session_id: str) -> None:
         """Elimina el historial de una sesión (útil para tests o reset explícito)."""
-        self._redis.delete(self._key(session_id))
+        await self._redis.delete(self._key(session_id))

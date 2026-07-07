@@ -13,9 +13,12 @@ from typing import TYPE_CHECKING
 from amia_shared.schemas import MACHINE_CONFIGS
 from app.agents.context import get_event_loop
 from app.ml.explain import save_prediction
-from .retrieval import Retriever, RetrievedChunk
+
+from .retrieval import RetrievedChunk, Retriever
 
 if TYPE_CHECKING:
+    from app.rag.metrics import InstrumentedRetriever
+
     from .predictor import FailurePredictor
     from .rca_predictor import RCAPredictor
     from .rul_predictor import RULPredictor
@@ -28,7 +31,7 @@ def _fire_save_prediction(**kwargs) -> None:
         asyncio.run_coroutine_threadsafe(save_prediction(**kwargs), loop)
 
 
-def build_search_tool(retriever: Retriever):
+def build_search_tool(retriever: Retriever | InstrumentedRetriever):
     """
     Factoría: devuelve una función de búsqueda con el retriever ya inyectado.
     Se llama una vez al arrancar la app, no en cada request.

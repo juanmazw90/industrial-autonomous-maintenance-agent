@@ -12,9 +12,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 # Asegura que el package `app` sea importable desde backend/
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import app.infra.db.models  # noqa: F401, E402  — registra todos los modelos en Base.metadata
+from app.infra.db.base import Base  # noqa: E402
 from app.infra.settings import settings  # noqa: E402
-from app.infra.db.base import Base       # noqa: E402
-import app.infra.db.models               # noqa: F401, E402  — registra todos los modelos en Base.metadata
 
 config = context.config
 if config.config_file_name is not None:

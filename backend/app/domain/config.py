@@ -54,7 +54,7 @@ class PlatformSettings(BaseModel):
 # ── Redis helper ──────────────────────────────────────────────────────────────
 
 def _get_redis():
-    import aioredis
+    import redis.asyncio as aioredis
     return aioredis.from_url(settings.redis_url, decode_responses=True)
 
 

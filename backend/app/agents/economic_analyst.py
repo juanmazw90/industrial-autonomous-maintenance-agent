@@ -9,8 +9,8 @@ from collections.abc import Callable
 
 from amia_shared.schemas import MACHINE_CONFIGS
 
-from .state import AMIAState
 from ..services.economic_impact import calculate_loss
+from .state import AMIAState
 
 
 def make_economic_analyst_node() -> Callable[[AMIAState], dict]:
