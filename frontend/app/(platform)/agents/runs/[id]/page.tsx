@@ -10,20 +10,16 @@ import { ArrowLeft, ChevronDown, ChevronRight, Wrench, Bot } from "lucide-react"
 // ── Trace node (recursive) ────────────────────────────────────────────────────
 
 function ToolCallRow({ tc }: { tc: { id: string; tool_name: string; status: string; latency_ms: number | null; started_at: string } }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className="border-l border-gray-800 pl-4 ml-4">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 py-1.5 text-sm w-full text-left hover:text-gray-200 transition-colors group"
-      >
+      <div className="flex items-center gap-2 py-1.5 text-sm w-full text-left">
         <Wrench size={11} className="text-gray-600 shrink-0" />
         <span className="text-gray-400 font-mono text-xs">{tc.tool_name}</span>
         <span className={`ml-1 text-[10px] font-semibold uppercase ${tc.status === "success" ? "text-green-500" : "text-red-400"}`}>
           {tc.status}
         </span>
         <span className="text-[11px] text-gray-600 ml-auto">{fmtDuration(tc.latency_ms)}</span>
-      </button>
+      </div>
     </div>
   );
 }

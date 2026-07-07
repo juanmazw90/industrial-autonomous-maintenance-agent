@@ -143,13 +143,15 @@ export interface AlertItem {
 }
 
 async function get<T>(path: string, params?: Record<string, string | number | boolean | null | undefined>): Promise<T> {
-  const url = new URL(`/api/v2${path}`, "http://localhost:3000");
+  const search = new URLSearchParams();
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
-      if (v != null) url.searchParams.set(k, String(v));
+      if (v != null) search.set(k, String(v));
     });
   }
-  const res = await fetch(url.pathname + url.search, { cache: "no-store" });
+  const qs = search.toString();
+  const prefix = path.startsWith("/api/") ? "" : "/api/v2";
+  const res = await fetch(`${prefix}${path}${qs ? `?${qs}` : ""}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
   return res.json();
 }
@@ -388,11 +390,8 @@ export const api = {
       get<{ total: number; entries: AuditEntry[] }>("/audit", params as Record<string, string | number>),
   },
   rul: {
-    all: (): Promise<RULPrediction[]> =>
-      fetch("/api/predict/rul/all", { cache: "no-store" }).then((r) => {
-        if (!r.ok) throw new Error(`RUL all → ${r.status}`);
-        return r.json();
-      }),
+    // Endpoint legacy v1: pasa por el rewrite /api/:path* (sin prefijo /api/v2)
+    all: (): Promise<RULPrediction[]> => get<RULPrediction[]>("/api/predict/rul/all"),
   },
   timeline: {
     list: (params?: { kind?: string; machine_code?: string; limit?: number; offset?: number }) =>

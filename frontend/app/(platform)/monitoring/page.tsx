@@ -2,7 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useOperationsSummary } from "@/lib/hooks";
 import { fmt, fmtTs, fmtDuration } from "@/lib/utils";
+import { KpiCard, SectionTitle, StatusDot } from "@/components/ui";
 import {
   CheckCircle2, XCircle, Clock, AlertTriangle,
   Bot, Database, FlaskConical, Activity, Cpu, ExternalLink,
@@ -10,12 +12,13 @@ import {
 
 // ── External tools ────────────────────────────────────────────────────────
 
+// URLs sobreescribibles en build con NEXT_PUBLIC_*; default: stack local
 const EXTERNAL_TOOLS = [
-  { name: "Grafana",    url: "http://localhost:3002", desc: "Dashboards API & AI Ops",    color: "text-orange-400" },
-  { name: "Prometheus", url: "http://localhost:9090", desc: "Métricas y alertas",          color: "text-red-400" },
-  { name: "Langfuse",   url: "http://localhost:3001", desc: "Trazas LLM y costos",         color: "text-purple-400" },
-  { name: "MLflow",     url: "http://localhost:5000", desc: "Registro de modelos",          color: "text-blue-400" },
-  { name: "Qdrant",     url: "http://localhost:6333/dashboard", desc: "Vector store", color: "text-green-400" },
+  { name: "Grafana",    url: process.env.NEXT_PUBLIC_GRAFANA_URL    ?? "http://localhost:3002", desc: "Dashboards API & AI Ops", color: "text-orange-400" },
+  { name: "Prometheus", url: process.env.NEXT_PUBLIC_PROMETHEUS_URL ?? "http://localhost:9090", desc: "Métricas y alertas",      color: "text-red-400" },
+  { name: "Langfuse",   url: process.env.NEXT_PUBLIC_LANGFUSE_URL   ?? "http://localhost:3001", desc: "Trazas LLM y costos",     color: "text-purple-400" },
+  { name: "MLflow",     url: process.env.NEXT_PUBLIC_MLFLOW_URL     ?? "http://localhost:5000", desc: "Registro de modelos",     color: "text-blue-400" },
+  { name: "Qdrant",     url: process.env.NEXT_PUBLIC_QDRANT_URL     ?? "http://localhost:6333/dashboard", desc: "Vector store",  color: "text-green-400" },
 ];
 
 function ExternalToolsSection() {
@@ -41,38 +44,6 @@ function ExternalToolsSection() {
       </div>
     </section>
   );
-}
-
-// ── Shared primitives ─────────────────────────────────────────────────────
-
-function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
-  return (
-    <div className="flex items-center gap-2 mb-4">
-      <Icon size={14} className="text-gray-500" />
-      <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</h2>
-    </div>
-  );
-}
-
-function KpiCard({
-  label, value, sub, accent = "text-gray-100",
-}: {
-  label: string; value: string; sub?: string; accent?: string;
-}) {
-  return (
-    <div className="bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-3">
-      <p className="text-[11px] text-gray-600 uppercase tracking-wider">{label}</p>
-      <p className={`text-2xl font-bold tabular-nums mt-0.5 leading-none ${accent}`}>{value}</p>
-      {sub && <p className="text-[11px] text-gray-600 mt-1">{sub}</p>}
-    </div>
-  );
-}
-
-function StatusDot({ ok }: { ok: boolean | null }) {
-  if (ok === null) return <span className="w-2 h-2 rounded-full bg-gray-600 inline-block" />;
-  return ok
-    ? <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />
-    : <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse inline-block" />;
 }
 
 // ── Infrastructure section ────────────────────────────────────────────────
@@ -127,11 +98,7 @@ function InfraSection() {
 // ── Plant / Fleet section ─────────────────────────────────────────────────
 
 function PlantSection() {
-  const { data } = useQuery({
-    queryKey: ["operations-summary"],
-    queryFn: api.operations.summary,
-    refetchInterval: 30_000,
-  });
+  const { data } = useOperationsSummary(30_000);
 
   if (!data) return (
     <section>

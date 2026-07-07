@@ -108,7 +108,7 @@ function LogsTable() {
                 const logger = e.logger as string | undefined;
                 const msg = (e.event ?? e.message ?? JSON.stringify(e)) as string;
                 return (
-                  <tr key={i} className={`hover:bg-gray-900/30 transition-colors ${
+                  <tr key={`${ts ?? ""}|${logger ?? ""}|${msg.slice(0, 60)}|${i}`} className={`hover:bg-gray-900/30 transition-colors ${
                     level === "error" || level === "critical" ? "bg-red-950/10" :
                     level === "warning" || level === "warn" ? "bg-yellow-950/5" : ""
                   }`}>

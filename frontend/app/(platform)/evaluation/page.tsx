@@ -223,7 +223,7 @@ export default function EvaluationPage() {
                 <td colSpan={7} className="px-4 py-16 text-center space-y-2">
                   <ClipboardCheck size={28} className="mx-auto text-gray-700" />
                   <p className="text-sm text-gray-600">Sin evaluaciones aún.</p>
-                  <p className="text-xs text-gray-700">Haz clic en "Nueva Evaluación" para registrar una revisión manual.</p>
+                  <p className="text-xs text-gray-700">Haz clic en &ldquo;Nueva Evaluación&rdquo; para registrar una revisión manual.</p>
                 </td>
               </tr>
             )}
