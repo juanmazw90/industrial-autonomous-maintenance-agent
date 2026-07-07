@@ -19,7 +19,6 @@ RCA se invoca únicamente cuando failure prediction ya disparó la alerta.
 from __future__ import annotations
 
 import json
-import math
 import os
 import tempfile
 import warnings
@@ -30,6 +29,7 @@ import mlflow.xgboost
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from amia_shared.features import build_features
 from sklearn.metrics import classification_report, roc_auc_score
 from sklearn.preprocessing import label_binarize
 from sklearn.utils.class_weight import compute_class_weight
@@ -48,15 +48,9 @@ MODEL_NAME      = "amia-rca-model"
 CLASSES   = sorted(["bearing_wear", "cavitation", "electrical_failure", "misalignment", "overheating"])
 CLASS_MAP = {c: i for i, c in enumerate(CLASSES)}
 
-# ── Feature engineering ───────────────────────────────────────────────────────
-SENSORS        = ["vibration_rms", "vibration_peak", "temperature_bearing",
-                  "temperature_motor", "pressure_discharge", "speed_rpm"]
-WINDOWS        = {"8h": 8, "24h": 24}
-BASELINE_HOURS = 168
-
-MACHINE_TYPE_MAP = {"compressor": 0, "induction_motor": 1, "centrifugal_pump": 2}
-LEAKAGE_COLS     = ["failure_mode", "is_failure", "degradation_fraction", "rul_hours", "rca_label"]
-META_COLS        = ["timestamp", "machine_id", "machine_type"]
+# ── Feature engineering: pipeline compartido en amia_shared.features ─────────
+LEAKAGE_COLS = ["failure_mode", "is_failure", "degradation_fraction", "rul_hours", "rca_label"]
+META_COLS    = ["timestamp", "machine_id", "machine_type"]
 
 SPLIT_DATE = pd.Timestamp("2024-11-01")
 
@@ -79,84 +73,6 @@ HPARAMS = {
     "n_jobs":                -1,
     "verbosity":             0,
 }
-
-
-# ── Feature engineering functions ─────────────────────────────────────────────
-
-def _linear_slope(arr: np.ndarray) -> float:
-    mask = ~np.isnan(arr)
-    if mask.sum() < 2:
-        return np.nan
-    x = np.arange(len(arr))
-    return float(np.polyfit(x[mask], arr[mask], 1)[0])
-
-
-def add_rolling_stats(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_mean_{label}"] = grp.transform(lambda x: x.rolling(w, min_periods=2).mean())
-            out[f"{sensor}_std_{label}"]  = grp.transform(lambda x: x.rolling(w, min_periods=2).std())
-            out[f"{sensor}_max_{label}"]  = grp.transform(lambda x: x.rolling(w, min_periods=2).max())
-            out[f"{sensor}_kurt_{label}"] = grp.transform(lambda x: x.rolling(w, min_periods=4).kurt())
-    return out
-
-
-def add_trend_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_slope_{label}"] = grp.transform(
-                lambda x: x.rolling(w, min_periods=2).apply(_linear_slope, raw=True)
-            )
-    return out
-
-
-def add_delta_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        out[f"{sensor}_delta_1h"]  = grp.transform(lambda x: x.diff(1))
-        out[f"{sensor}_delta_8h"]  = grp.transform(lambda x: x.diff(8))
-        out[f"{sensor}_delta_24h"] = grp.transform(lambda x: x.diff(24))
-        out[f"{sensor}_accel"]     = grp.transform(lambda x: x.diff(1).diff(1))
-    return out
-
-
-def add_cross_sensor_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    out["current_imbalance"]    = out[["current_phase_a", "current_phase_b", "current_phase_c"]].std(axis=1)
-    out["temp_per_rpm"]         = out["temperature_bearing"] / out["speed_rpm"].replace(0, np.nan)
-    out["vibro_thermal_stress"] = out["vibration_rms"] * out["temperature_bearing"]
-    out["temp_ratio"]           = out["temperature_bearing"] / out["temperature_motor"].replace(0, np.nan)
-    out["current_mean"]         = out[["current_phase_a", "current_phase_b", "current_phase_c"]].mean(axis=1)
-    return out
-
-
-def add_baseline_normalization(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        baseline = out.groupby("machine_id")[sensor].transform(
-            lambda x: x.iloc[:BASELINE_HOURS].mean()
-        )
-        out[f"{sensor}_vs_baseline"] = out[sensor] - baseline
-    return out
-
-
-def build_features(df: pd.DataFrame) -> pd.DataFrame:
-    print("1/4  Rolling stats...")
-    df = add_rolling_stats(df)
-    print("2/4  Tendencias...")
-    df = add_trend_features(df)
-    print("3/4  Deltas...")
-    df = add_delta_features(df)
-    print("4/4  Cross-sensor + baseline...")
-    df = add_cross_sensor_features(df)
-    df = add_baseline_normalization(df)
-    print(f"     Shape: {df.shape}")
-    return df
 
 
 # ── Utilidades ────────────────────────────────────────────────────────────────
@@ -193,8 +109,7 @@ def train() -> None:
     df = pd.read_parquet(DATA_PATH)
     df = df.sort_values(["machine_id", "timestamp"]).reset_index(drop=True)
 
-    df_feat = build_features(df)
-    df_feat["machine_type_enc"] = df_feat["machine_type"].map(MACHINE_TYPE_MAP)
+    df_feat = build_features(df)  # incluye machine_type_enc
     df_feat["rca_label"] = df_feat["failure_mode"].map(CLASS_MAP)
 
     # Solo filas de degradación activa con clase válida (excluye 'normal' y 'failure')
@@ -311,7 +226,7 @@ def train() -> None:
 
         print(f"\nModelo registrado como '{MODEL_NAME}' en MLflow.")
         print(f"Run ID: {run.info.run_id}")
-        print(f"\nTop 10 features:")
+        print("\nTop 10 features:")
         print(importances.head(10).round(4).to_string())
 
 

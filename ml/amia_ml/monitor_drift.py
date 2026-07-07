@@ -19,8 +19,8 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from evidently.legacy.pipeline.column_mapping import ColumnMapping
 from evidently.legacy.metric_preset import DataDriftPreset, DataQualityPreset
+from evidently.legacy.pipeline.column_mapping import ColumnMapping
 from evidently.legacy.report import Report
 
 REPO_ROOT   = Path(__file__).resolve().parents[2]

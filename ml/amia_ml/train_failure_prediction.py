@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import warnings
 from pathlib import Path
 
@@ -24,6 +25,7 @@ import mlflow.xgboost
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from amia_shared.features import build_features, compute_baselines
 from sklearn.metrics import (
     average_precision_score,
     classification_report,
@@ -41,23 +43,11 @@ MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{REPO_ROOT / 'mlflow.d
 EXPERIMENT_NAME = "amia-failure-prediction"
 MODEL_NAME = "amia-failure-prediction"
 
-# ── Feature engineering constants ─────────────────────────────────────────────
-SENSORS = [
-    "vibration_rms",
-    "vibration_peak",
-    "temperature_bearing",
-    "temperature_motor",
-    "pressure_discharge",
-    "speed_rpm",
-]
-WINDOWS = {"8h": 8, "24h": 24}
+# ── Feature engineering: pipeline compartido en amia_shared.features ─────────
 SPLIT_DATE = pd.Timestamp("2024-11-01")
-BASELINE_HOURS = 168  # first 7 days of each machine as healthy reference
 
 LEAKAGE_COLS = ["failure_mode", "is_failure", "degradation_fraction", "rul_hours"]
 META_COLS = ["timestamp", "machine_id", "machine_type", "label"]
-
-MACHINE_TYPE_MAP = {"compressor": 0, "induction_motor": 1, "centrifugal_pump": 2}
 
 # ── Hyperparameters ───────────────────────────────────────────────────────────
 HPARAMS = {
@@ -78,98 +68,6 @@ HPARAMS = {
 }
 
 
-# ── Feature engineering functions ─────────────────────────────────────────────
-
-def add_rolling_stats(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_mean_{label}"] = grp.transform(lambda x: x.rolling(w, min_periods=2).mean())
-            out[f"{sensor}_std_{label}"]  = grp.transform(lambda x: x.rolling(w, min_periods=2).std())
-            out[f"{sensor}_max_{label}"]  = grp.transform(lambda x: x.rolling(w, min_periods=2).max())
-            out[f"{sensor}_kurt_{label}"] = grp.transform(lambda x: x.rolling(w, min_periods=4).kurt())
-    return out
-
-
-def _linear_slope(arr: np.ndarray) -> float:
-    mask = ~np.isnan(arr)
-    if mask.sum() < 2:
-        return np.nan
-    x = np.arange(len(arr))
-    return float(np.polyfit(x[mask], arr[mask], 1)[0])
-
-
-def add_trend_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        for label, w in WINDOWS.items():
-            out[f"{sensor}_slope_{label}"] = grp.transform(
-                lambda x: x.rolling(w, min_periods=2).apply(_linear_slope, raw=True)
-            )
-    return out
-
-
-def add_delta_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    for sensor in SENSORS:
-        grp = out.groupby("machine_id")[sensor]
-        out[f"{sensor}_delta_1h"]  = grp.transform(lambda x: x.diff(1))
-        out[f"{sensor}_delta_8h"]  = grp.transform(lambda x: x.diff(8))
-        out[f"{sensor}_delta_24h"] = grp.transform(lambda x: x.diff(24))
-        out[f"{sensor}_accel"]     = grp.transform(lambda x: x.diff(1).diff(1))
-    return out
-
-
-def add_cross_sensor_features(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.copy()
-    out["current_imbalance"]    = out[["current_phase_a", "current_phase_b", "current_phase_c"]].std(axis=1)
-    out["temp_per_rpm"]         = out["temperature_bearing"] / out["speed_rpm"].replace(0, np.nan)
-    out["vibro_thermal_stress"] = out["vibration_rms"] * out["temperature_bearing"]
-    out["temp_ratio"]           = out["temperature_bearing"] / out["temperature_motor"].replace(0, np.nan)
-    out["current_mean"]         = out[["current_phase_a", "current_phase_b", "current_phase_c"]].mean(axis=1)
-    return out
-
-
-def add_baseline_normalization(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-    """
-    Normalizes each sensor against each machine's first BASELINE_HOURS of healthy operation.
-    Returns the enriched DataFrame and a dict of baseline values for use at inference time.
-    """
-    out = df.copy()
-    baselines: dict[str, dict[str, float]] = {}
-
-    for sensor in SENSORS:
-        sensor_baselines = (
-            out.groupby("machine_id")[sensor]
-            .apply(lambda x: x.iloc[:BASELINE_HOURS].mean())
-            .to_dict()
-        )
-        baselines[sensor] = sensor_baselines
-        baseline_series = out.groupby("machine_id")[sensor].transform(
-            lambda x: x.iloc[:BASELINE_HOURS].mean()
-        )
-        out[f"{sensor}_vs_baseline"] = out[sensor] - baseline_series
-
-    return out, baselines
-
-
-def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-    print("1/5  Rolling stats (mean / std / max / kurt × 8h y 24h)...")
-    df = add_rolling_stats(df)
-    print("2/5  Tendencias (pendiente lineal × 8h y 24h)...")
-    df = add_trend_features(df)
-    print("3/5  Deltas (1h / 8h / 24h / aceleración)...")
-    df = add_delta_features(df)
-    print("4/5  Features cross-sensor...")
-    df = add_cross_sensor_features(df)
-    print("5/5  Normalización por baseline de máquina...")
-    df, baselines = add_baseline_normalization(df)
-    print(f"     Shape final: {df.shape}")
-    return df, baselines
-
-
 # ── Training entrypoint ───────────────────────────────────────────────────────
 
 def train() -> None:
@@ -182,10 +80,8 @@ def train() -> None:
     df = pd.read_parquet(DATA_PATH)
     df = df.sort_values(["machine_id", "timestamp"]).reset_index(drop=True)
 
-    df_feat, baselines = build_features(df.copy())
-
-    # Encoding
-    df_feat["machine_type_enc"] = df_feat["machine_type"].map(MACHINE_TYPE_MAP)
+    df_feat = build_features(df.copy())  # incluye machine_type_enc
+    baselines = compute_baselines(df)
     feature_cols = [c for c in df_feat.columns if c not in LEAKAGE_COLS + META_COLS]
 
     # Target: ¿hay fallo en las próximas 24h?
@@ -209,11 +105,15 @@ def train() -> None:
     print(f"Test:  {len(X_test):,}   |  positivos: {y_test.sum():,} ({y_test.mean():.2%})")
 
     # scale_pos_weight: sqrt del ratio real × 3 (suavizado vs ratio completo)
-    ratio = y_train.value_counts()[0] / y_train.value_counts()[1]
+    pos = int((y_train == 1).sum())
+    if pos == 0:
+        raise RuntimeError("El split temporal no contiene positivos: ajusta SPLIT_DATE o regenera datos.")
+    ratio = int((y_train == 0).sum()) / pos
     scale_pos_weight = int(np.sqrt(ratio) * 3)
     print(f"\nscale_pos_weight = {scale_pos_weight}  (ratio real = {ratio:.1f}:1)")
 
     # ── MLflow run ────────────────────────────────────────────────────────────
+    _artifacts_dir = tempfile.mkdtemp(prefix="amia_artifacts_")
     with mlflow.start_run() as run:
         print(f"\nMLflow run_id: {run.info.run_id}")
 
@@ -274,19 +174,19 @@ def train() -> None:
 
         # ── Log artifacts ─────────────────────────────────────────────────────
         # Feature columns (needed to build the same feature vector at inference)
-        feature_cols_path = "/tmp/feature_cols.json"
+        feature_cols_path = os.path.join(_artifacts_dir, "feature_cols.json")
         with open(feature_cols_path, "w") as f:
             json.dump(feature_cols, f, indent=2)
         mlflow.log_artifact(feature_cols_path, artifact_path="inference")
 
         # Baseline values per machine per sensor (needed for _vs_baseline features at inference)
-        baselines_path = "/tmp/baselines.json"
+        baselines_path = os.path.join(_artifacts_dir, "baselines.json")
         with open(baselines_path, "w") as f:
             json.dump(baselines, f, indent=2)
         mlflow.log_artifact(baselines_path, artifact_path="inference")
 
         # Optimal threshold
-        threshold_path = "/tmp/optimal_threshold.json"
+        threshold_path = os.path.join(_artifacts_dir, "optimal_threshold.json")
         with open(threshold_path, "w") as f:
             json.dump({"threshold": best_thresh, "f1": best_f1}, f, indent=2)
         mlflow.log_artifact(threshold_path, artifact_path="inference")
@@ -297,7 +197,7 @@ def train() -> None:
             .sort_values(ascending=False)
             .rename("importance")
         )
-        fi_path = "/tmp/feature_importances.csv"
+        fi_path = os.path.join(_artifacts_dir, "feature_importances.csv")
         importances.to_csv(fi_path, header=True)
         mlflow.log_artifact(fi_path)
 
@@ -311,7 +211,7 @@ def train() -> None:
 
         print(f"\nModelo registrado como '{MODEL_NAME}' en MLflow.")
         print(f"Run ID: {run.info.run_id}")
-        print(f"\nTop 10 features:")
+        print("\nTop 10 features:")
         print(importances.head(10).round(4).to_string())
 
 

@@ -455,7 +455,7 @@ def main() -> None:
     csv_path = output_dir / "sensor_readings.csv"
     df.to_parquet(parquet_path, index=False)
     df.to_csv(csv_path, index=False)
-    print(f"\nDataset saved:")
+    print("\nDataset saved:")
     print(f"  {parquet_path}  ({parquet_path.stat().st_size / 1024:.0f} KB)")
     print(f"  {csv_path}  ({csv_path.stat().st_size / 1024:.0f} KB)")
 
@@ -469,7 +469,7 @@ def main() -> None:
     configs_path.write_text(json.dumps(MACHINE_CONFIGS, indent=2))
 
     # Stats summary
-    print(f"\nDataset summary:")
+    print("\nDataset summary:")
     print(f"  Total rows:       {len(df):,}")
     print(f"  Machines:         {df['machine_id'].nunique()}")
     print(f"  Failure events:   {len(events)}")
